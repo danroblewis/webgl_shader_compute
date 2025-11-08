@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title id="pageTitle">WebGL Compute Example</title>
     <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css">
     <style>
         .example {
             background: white;
@@ -44,6 +45,15 @@
             font-family: 'Courier New', monospace;
             font-size: 13px;
         }
+        #sourceCode {
+            font-size: 13px;
+            margin: 0;
+            max-height: 500px;
+            overflow-y: auto;
+        }
+        pre {
+            margin: 0;
+        }
         .error {
             background: #ffebee;
             color: #c62828;
@@ -63,6 +73,11 @@
             <p id="exampleDescription"></p>
             <button id="runButton" onclick="runExample()">Run Example</button>
             <div id="result" class="result"></div>
+        </div>
+        
+        <div class="example">
+            <h2>Source Code</h2>
+            <pre><code id="sourceCode" class="language-javascript"></code></pre>
         </div>
     </div>
 
@@ -111,6 +126,9 @@
                 document.getElementById('exampleTitle').textContent = module.heading;
                 document.getElementById('exampleDescription').textContent = module.description;
                 document.getElementById('runButton').textContent = module.buttonText || 'Run Example';
+                
+                // Load and display source code
+                await loadSourceCode(exampleName);
                 
                 // Automatically run the example
                 await runExample();
@@ -175,6 +193,24 @@
             }
         }
 
+        // Load and display source code
+        async function loadSourceCode(exampleName) {
+            try {
+                const response = await fetch(`./${exampleName}.js`);
+                const sourceText = await response.text();
+                const codeElement = document.getElementById('sourceCode');
+                codeElement.textContent = sourceText;
+                
+                // Apply syntax highlighting if Prism is available
+                if (window.Prism) {
+                    Prism.highlightElement(codeElement);
+                }
+            } catch (error) {
+                console.error('Failed to load source code:', error);
+                document.getElementById('sourceCode').textContent = '// Failed to load source code';
+            }
+        }
+
         // Show error message
         function showError(message) {
             document.getElementById('pageHeading').textContent = 'Error';
@@ -192,6 +228,8 @@
             }
         });
     </script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-javascript.min.js"></script>
 </body>
 </html>
 
