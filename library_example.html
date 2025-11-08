@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebGL Compute Library - Examples</title>
+    <link rel="stylesheet" href="styles.css">
+    <style>
+        .example {
+            background: white;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .example h2 {
+            margin-top: 0;
+            color: #2c5aa0;
+        }
+        button {
+            background: #2c5aa0;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            margin: 10px 5px 10px 0;
+        }
+        button:hover {
+            background: #1e3f7a;
+        }
+        .result {
+            margin-top: 15px;
+        }
+        .code {
+            background: #f5f5f5;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+        }
+    </style>
+</head>
+<body>
+    <h1>WebGL Compute Library Examples</h1>
+    <p>This library makes GPU computation simple and accessible!</p>
+
+    <!-- Example 1: Simple Addition -->
+    <div class="example">
+        <h2>Example 1: Array Addition</h2>
+        <p>Add two arrays element-wise on the GPU.</p>
+        <button onclick="runExample1()">Run Addition</button>
+        <div id="result1" class="result"></div>
+    </div>
+
+    <!-- Example 2: Multiplication -->
+    <div class="example">
+        <h2>Example 2: Array Multiplication</h2>
+        <p>Multiply two arrays element-wise on the GPU.</p>
+        <button onclick="runExample2()">Run Multiplication</button>
+        <div id="result2" class="result"></div>
+    </div>
+
+    <!-- Example 3: Vector Operations -->
+    <div class="example">
+        <h2>Example 3: Complex Expression</h2>
+        <p>Compute: (a * 2.0) + (b * 3.0) - 5.0</p>
+        <button onclick="runExample3()">Run Expression</button>
+        <div id="result3" class="result"></div>
+    </div>
+
+    <!-- Example 4: Cellular Automata Step -->
+    <div class="example">
+        <h2>Example 4: Game of Life Step (1D)</h2>
+        <p>Compute one step of a 1D cellular automaton (Rule 110).</p>
+        <button onclick="runExample4()">Run Automaton</button>
+        <div id="result4" class="result"></div>
+    </div>
+
+    <script src="webgl-compute.js"></script>
+    <script>
+        let compute;
+
+        // Initialize compute context
+        function initCompute() {
+            if (!compute) {
+                try {
+                    compute = new WebGLCompute();
+                    console.log('WebGL Compute initialized');
+                } catch (e) {
+                    alert('Error: ' + e.message);
+                    throw e;
+                }
+            }
+            return compute;
+        }
+
+        // Example 1: Simple Addition
+        async function runExample1() {
+            const compute = initCompute();
+            const resultDiv = document.getElementById('result1');
+            resultDiv.innerHTML = 'Computing...';
+
+            const shader = `
+                precision highp float;
+                uniform sampler2D u_a;
+                uniform sampler2D u_b;
+                varying vec2 v_texCoord;
+                
+                void main() {
+                    float a = texture2D(u_a, v_texCoord).r;
+                    float b = texture2D(u_b, v_texCoord).r;
+                    float result = a + b;
+                    gl_FragColor = vec4(result, 0.0, 0.0, 1.0);
+                }
+            `;
+
+            const size = 10;
+            const a = Array.from({ length: size }, (_, i) => i);
+            const b = Array.from({ length: size }, (_, i) => i * 2);
+
+            const result = await compute.computeArrays({ shader, inputs: { a, b }, size });
+
+            let output = '<pre>';
+            output += 'a:      ' + a.join(', ') + '\n';
+            output += 'b:      ' + b.join(', ') + '\n';
+            output += 'a + b:  ' + Array.from(result).map(x => x.toFixed(1)).join(', ');
+            output += '</pre>';
+
+            resultDiv.innerHTML = output;
+        }
+
+        // Example 2: Multiplication
+        async function runExample2() {
+            const compute = initCompute();
+            const resultDiv = document.getElementById('result2');
+            resultDiv.innerHTML = 'Computing...';
+
+            const shader = `
+                precision highp float;
+                uniform sampler2D u_a;
+                uniform sampler2D u_b;
+                varying vec2 v_texCoord;
+                
+                void main() {
+                    float a = texture2D(u_a, v_texCoord).r;
+                    float b = texture2D(u_b, v_texCoord).r;
+                    float result = a * b;
+                    gl_FragColor = vec4(result, 0.0, 0.0, 1.0);
+                }
+            `;
+
+            const size = 10;
+            const a = Array.from({ length: size }, (_, i) => i + 1);
+            const b = Array.from({ length: size }, (_, i) => 2.0);
+
+            const result = await compute.computeArrays({ shader, inputs: { a, b }, size });
+
+            let output = '<pre>';
+            output += 'a:      ' + a.join(', ') + '\n';
+            output += 'b:      ' + b.map(x => x.toFixed(1)).join(', ') + '\n';
+            output += 'a * b:  ' + Array.from(result).map(x => x.toFixed(1)).join(', ');
+            output += '</pre>';
+
+            resultDiv.innerHTML = output;
+        }
+
+        // Example 3: Complex Expression
+        async function runExample3() {
+            const compute = initCompute();
+            const resultDiv = document.getElementById('result3');
+            resultDiv.innerHTML = 'Computing...';
+
+            const shader = `
+                precision highp float;
+                uniform sampler2D u_a;
+                uniform sampler2D u_b;
+                varying vec2 v_texCoord;
+                
+                void main() {
+                    float a = texture2D(u_a, v_texCoord).r;
+                    float b = texture2D(u_b, v_texCoord).r;
+                    float result = (a * 2.0) + (b * 3.0) - 5.0;
+                    gl_FragColor = vec4(result, 0.0, 0.0, 1.0);
+                }
+            `;
+
+            const size = 10;
+            const a = Array.from({ length: size }, (_, i) => i);
+            const b = Array.from({ length: size }, (_, i) => i + 1);
+
+            const result = await compute.computeArrays({ shader, inputs: { a, b }, size });
+
+            let output = '<pre>';
+            output += 'a:                         ' + a.join(', ') + '\n';
+            output += 'b:                         ' + b.join(', ') + '\n';
+            output += '(a * 2) + (b * 3) - 5:     ' + Array.from(result).map(x => x.toFixed(1)).join(', ');
+            output += '</pre>';
+
+            resultDiv.innerHTML = output;
+        }
+
+        // Example 4: 1D Cellular Automaton
+        async function runExample4() {
+            const compute = initCompute();
+            const resultDiv = document.getElementById('result4');
+            resultDiv.innerHTML = 'Computing...';
+
+            // Simple rule: if exactly one neighbor is 1, cell becomes 1
+            const shader = `
+                precision highp float;
+                uniform sampler2D u_state;
+                varying vec2 v_texCoord;
+                
+                void main() {
+                    float size = 32.0;
+                    float cellWidth = 1.0 / size;
+                    
+                    // Sample neighbors (with wrapping)
+                    float left = texture2D(u_state, v_texCoord - vec2(cellWidth, 0.0)).r;
+                    float center = texture2D(u_state, v_texCoord).r;
+                    float right = texture2D(u_state, v_texCoord + vec2(cellWidth, 0.0)).r;
+                    
+                    // Apply rule: cell is alive if center OR (left XOR right)
+                    float sum = left + center + right;
+                    float leftXorRight = mod(left + right, 2.0);
+                    float result = max(center, leftXorRight);
+                    
+                    gl_FragColor = vec4(result, 0.0, 0.0, 1.0);
+                }
+            `;
+
+            const size = 32;
+            const state = new Array(size).fill(0);
+            state[size / 2] = 1; // Single cell in middle
+
+            const result = await compute.computeArrays({ shader, inputs: { state }, size });
+
+            let output = '<div class="code">';
+            output += 'Initial: ' + state.map(x => x ? '█' : '·').join('') + '<br>';
+            output += 'Step 1:  ' + Array.from(result).map(x => x > 0.5 ? '█' : '·').join('');
+            output += '</div>';
+
+            resultDiv.innerHTML = output;
+        }
+
+        // Clean up on page unload
+        window.addEventListener('beforeunload', () => {
+            if (compute) {
+                compute.dispose();
+            }
+        });
+    </script>
+</body>
+</html>
+
