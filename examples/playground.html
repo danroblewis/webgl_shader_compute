@@ -468,16 +468,11 @@
                 );
                 
                 // Remove shaderFile export line and other metadata constants
-                jsSource = jsSource.replace(/const\s+(shaderFile|title|heading|description|buttonText)\s*=\s*[^;]+;?/g, '');
+                // Replace each with empty line to preserve line structure
+                jsSource = jsSource.replace(/.*const\s+(shaderFile|title|heading|description|buttonText)\s*=\s*[^;]+;?\s*\n/g, '');
                 
-                // Remove comment-only lines and extra blank lines
+                // Clean up excessive blank lines (more than 2 in a row)
                 jsSource = jsSource
-                    .split('\n')
-                    .filter(line => {
-                        const trimmed = line.trim();
-                        return trimmed !== '' || line === '\n';
-                    })
-                    .join('\n')
                     .replace(/\n\n\n+/g, '\n\n')
                     .trim();
                 
