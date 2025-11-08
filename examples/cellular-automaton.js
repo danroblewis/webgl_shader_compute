@@ -26,10 +26,10 @@ export async function run(compute) {
 
 // Custom renderer for cellular automaton visualization
 export function render(data) {
-    let output = '<div class="code">';
+    let output = '<pre class="code">';
     output += 'Initial: ' + data.initial.map(x => x ? '█' : '·').join('') + '<br>';
     output += 'Step 1:  ' + data.result.map(x => x > 0.5 ? '█' : '·').join('');
-    output += '</div>';
+    output += '</pre>';
     return output;
 }
 
