@@ -112,6 +112,9 @@
                 document.getElementById('exampleDescription').textContent = module.description;
                 document.getElementById('runButton').textContent = module.buttonText || 'Run Example';
                 
+                // Automatically run the example
+                await runExample();
+                
             } catch (error) {
                 console.error('Failed to load example:', error);
                 showError(`Failed to load example "${exampleName}". Error: ${error.message}`);
