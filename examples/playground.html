@@ -124,6 +124,34 @@
             cursor: pointer;
         }
         
+        .example-selector {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 13px;
+            color: #aaa;
+        }
+        
+        .example-selector select {
+            background: #333;
+            color: #ccc;
+            border: 1px solid #555;
+            border-radius: 4px;
+            padding: 4px 8px;
+            cursor: pointer;
+            font-size: 13px;
+        }
+        
+        .example-selector select:hover {
+            background: #3a3a3a;
+        }
+        
+        .controls-group {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+        
         .result-panel #result {
             flex: 1;
             padding: 15px;
@@ -195,9 +223,20 @@
                 <div>
                     Result <span id="status" class="status">Ready</span>
                 </div>
-                <div class="loop-toggle">
-                    <input type="checkbox" id="loopToggle">
-                    <label for="loopToggle">Loop (5 FPS)</label>
+                <div class="controls-group">
+                    <div class="example-selector">
+                        <label for="exampleSelect">Load:</label>
+                        <select id="exampleSelect">
+                            <option value="">-- Select Example --</option>
+                            <option value="array-addition">Array Addition</option>
+                            <option value="cellular-automaton">Cellular Automaton</option>
+                            <option value="counter">Counter (Stateful)</option>
+                        </select>
+                    </div>
+                    <div class="loop-toggle">
+                        <input type="checkbox" id="loopToggle">
+                        <label for="loopToggle">Loop (5 FPS)</label>
+                    </div>
                 </div>
             </h2>
             <div id="result"></div>
@@ -226,10 +265,110 @@
         const resultDiv = document.getElementById('result');
         const statusSpan = document.getElementById('status');
         const loopToggle = document.getElementById('loopToggle');
+        const exampleSelect = document.getElementById('exampleSelect');
         
         // Cache compiled module to preserve state between executions
         let cachedModule = null;
         let cachedJsCode = null;
+        
+        // Example templates
+        const examples = {
+            'array-addition': {
+                shader: `precision highp float;
+uniform sampler2D u_a;
+uniform sampler2D u_b;
+varying vec2 v_texCoord;
+
+void main() {
+    float a = texture2D(u_a, v_texCoord).r;
+    float b = texture2D(u_b, v_texCoord).r;
+    float result = a + b;
+    gl_FragColor = vec4(result, 0.0, 0.0, 1.0);
+}`,
+                js: `// Run function: receives compute instance
+async function run(compute, shaderSource) {
+    const shader = compute.compile(shaderSource);
+    
+    const a = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9];
+    const b = [0, 2, 4, 6, 8, 10, 12, 14, 16, 18];
+    
+    const result = await shader.run({ a, b }, a.length);
+    
+    return [
+        { label: 'a', values: a },
+        { label: 'b', values: b },
+        { label: 'a + b', values: Array.from(result) }
+    ];
+}`
+            },
+            'cellular-automaton': {
+                shader: `precision highp float;
+uniform sampler2D u_state;
+varying vec2 v_texCoord;
+
+void main() {
+    float size = 32.0;
+    float cellWidth = 1.0 / size;
+    
+    // Sample neighbors (with wrapping)
+    float left = texture2D(u_state, v_texCoord - vec2(cellWidth, 0.0)).r;
+    float center = texture2D(u_state, v_texCoord).r;
+    float right = texture2D(u_state, v_texCoord + vec2(cellWidth, 0.0)).r;
+    
+    // Apply rule: cell is alive if center OR (left XOR right)
+    float leftXorRight = mod(left + right, 2.0);
+    float result = max(center, leftXorRight);
+    
+    gl_FragColor = vec4(result, 0.0, 0.0, 1.0);
+}`,
+                js: `var state = [
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    1,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+];
+
+async function run(compute, shaderSource) {
+    const shader = compute.compile(shaderSource);
+    const result = await shader.run({ state }, state.length);
+    state = Array.from(result);
+    
+    return { state };
+}
+
+function render(data) {
+    return '<div style="font-family: monospace; font-size: 16px; line-height: 1.5;">' +
+           data.state.map(x => x > 0.5 ? '█' : '·').join('') +
+           '</div>';
+}`
+            },
+            'counter': {
+                shader: `precision highp float;
+uniform sampler2D u_value;
+varying vec2 v_texCoord;
+
+void main() {
+    float value = texture2D(u_value, v_texCoord).r;
+    float result = value + 1.0;
+    gl_FragColor = vec4(result, 0.0, 0.0, 1.0);
+}`,
+                js: `var counter = 0;
+
+async function run(compute, shaderSource) {
+    const shader = compute.compile(shaderSource);
+    const value = [counter];
+    const result = await shader.run({ value }, 1);
+    counter = result[0];
+    
+    return { counter };
+}
+
+function render(data) {
+    return '<div style="font-size: 48px; font-weight: bold; color: #4CAF50;">' +
+           Math.floor(data.counter) +
+           '</div>';
+}`
+            }
+        };
         
         // Initialize compute context
         function initCompute() {
@@ -372,6 +511,41 @@
             }
         }
         
+        // Load example into editors
+        function loadExample(exampleName) {
+            const example = examples[exampleName];
+            if (!example) return;
+            
+            // Stop loop if running
+            if (loopToggle.checked) {
+                loopToggle.checked = false;
+                stopLoop();
+            }
+            
+            // Load code into editors
+            shaderEditor.setValue(example.shader, -1);
+            jsEditor.setValue(example.js, -1);
+            
+            // Reset cache to recompile
+            cachedModule = null;
+            cachedJsCode = null;
+            
+            // Run the example
+            execute();
+        }
+        
+        // Handle example selection
+        function handleExampleSelect() {
+            const exampleName = exampleSelect.value;
+            if (exampleName) {
+                loadExample(exampleName);
+                // Reset dropdown to placeholder
+                setTimeout(() => {
+                    exampleSelect.value = '';
+                }, 100);
+            }
+        }
+        
         // Show error message
         function showError(message) {
             resultDiv.innerHTML = `<div class="error">${message}</div>`;
@@ -382,6 +556,7 @@
         window.addEventListener('load', () => {
             initEditors();
             loopToggle.addEventListener('change', handleLoopToggle);
+            exampleSelect.addEventListener('change', handleExampleSelect);
             execute();
         });
         
