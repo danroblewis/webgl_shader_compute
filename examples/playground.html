@@ -10,6 +10,7 @@
             max-width: none;
             padding: 0;
             margin: 0;
+            background: #1e1e1e;
         }
         
         .header {
@@ -30,7 +31,7 @@
         .playground-container {
             display: flex;
             flex-direction: column;
-            height: calc(100vh - 80px);
+            height: 100vh;
         }
         
         .editors-row {
@@ -43,7 +44,7 @@
             flex: 1;
             display: flex;
             flex-direction: column;
-            border-right: 1px solid #ddd;
+            border-right: 1px solid #333;
             overflow: hidden;
         }
         
@@ -56,9 +57,9 @@
             padding: 10px 15px;
             font-size: 14px;
             font-weight: 600;
-            color: #333;
-            background: #f5f5f5;
-            border-bottom: 1px solid #ddd;
+            color: #aaa;
+            background: #252525;
+            border-bottom: 1px solid #333;
         }
         
         .code-editor {
@@ -81,8 +82,8 @@
         }
         
         .result-panel {
-            background: white;
-            border-top: 1px solid #ddd;
+            background: #1e1e1e;
+            border-top: 1px solid #333;
             min-height: 200px;
             max-height: 300px;
             overflow-y: auto;
@@ -95,9 +96,9 @@
             padding: 10px 15px;
             font-size: 14px;
             font-weight: 600;
-            color: #333;
-            background: #f5f5f5;
-            border-bottom: 1px solid #ddd;
+            color: #aaa;
+            background: #252525;
+            border-bottom: 1px solid #333;
             flex-shrink: 0;
         }
         
@@ -105,6 +106,12 @@
             flex: 1;
             padding: 15px;
             overflow-y: auto;
+            color: #ccc;
+        }
+        
+        .result-panel pre {
+            color: #ccc;
+            margin: 0;
         }
         
         .status {
@@ -117,18 +124,18 @@
         }
         
         .status.success {
-            background: #c8e6c9;
-            color: #2e7d32;
+            background: #2e7d32;
+            color: #c8e6c9;
         }
         
         .status.error {
-            background: #ffcdd2;
-            color: #c62828;
+            background: #c62828;
+            color: #ffcdd2;
         }
         
         .status.running {
-            background: #fff9c4;
-            color: #f57f17;
+            background: #f57f17;
+            color: #fff9c4;
         }
         
         @media (max-width: 1024px) {
@@ -148,11 +155,6 @@
     </style>
 </head>
 <body>
-    <div class="header">
-        <h1>WebGL Compute Playground</h1>
-        <p><a href="index.html">← Back to Examples</a></p>
-    </div>
-    
     <div class="playground-container">
         <div class="editors-row">
             <div class="editor-panel">
@@ -214,7 +216,7 @@
             shaderEditor.session.setMode("ace/mode/glsl");
             shaderEditor.setValue(defaultShader, -1);
             shaderEditor.setOptions({
-                fontSize: "15px",
+                fontSize: "13px",
                 showPrintMargin: false,
                 enableBasicAutocompletion: true,
                 enableLiveAutocompletion: false
@@ -229,7 +231,7 @@
             jsEditor.session.setMode("ace/mode/javascript");
             jsEditor.setValue(defaultRunner, -1);
             jsEditor.setOptions({
-                fontSize: "15px",
+                fontSize: "13px",
                 showPrintMargin: false,
                 enableBasicAutocompletion: true,
                 enableLiveAutocompletion: false
@@ -295,7 +297,7 @@
         // Debounced execution
         function scheduleExecution() {
             clearTimeout(executeTimeout);
-            executeTimeout = setTimeout(execute, 500);
+            executeTimeout = setTimeout(execute, 0);
         }
         
         // Show error message
