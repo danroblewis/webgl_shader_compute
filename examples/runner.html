@@ -71,7 +71,7 @@
         <div class="example">
             <h2 id="exampleTitle">Loading example...</h2>
             <p id="exampleDescription"></p>
-            <button id="runButton" onclick="runExample()">Run Example</button>
+            <button id="runButton">Run Example</button>
             <div id="result" class="result"></div>
         </div>
         
@@ -86,8 +86,10 @@
         </div>
     </div>
 
-    <script src="../webgl-compute.js"></script>
-    <script>
+    <script type="module">
+        import { WebGLCompute } from '../webgl-compute.js';
+        import { renderGeneric } from './utils.js';
+        
         let compute;
         let currentExample = null;
 
@@ -160,29 +162,6 @@
             return renderGeneric(result);
         }
 
-        // Generic renderer for array-based data
-        function renderGeneric(data) {
-            // Check if data is an array of objects with label/values
-            if (Array.isArray(data) && data.length > 0 && data[0].label && data[0].values) {
-                let output = '<pre>';
-                const maxLabelLength = Math.max(...data.map(d => d.label.length));
-                
-                data.forEach(item => {
-                    const label = item.label.padEnd(maxLabelLength);
-                    const values = item.values.map(v => 
-                        typeof v === 'number' ? v.toFixed(1) : v
-                    ).join(', ');
-                    output += `${label}:  ${values}\n`;
-                });
-                
-                output += '</pre>';
-                return output;
-            }
-            
-            // Fallback: JSON stringify
-            return '<pre>' + JSON.stringify(data, null, 2) + '</pre>';
-        }
-
         // Run the current example
         async function runExample() {
             if (!currentExample || !currentExample.run) {
@@ -247,7 +226,10 @@
         }
 
         // Load example on page load
-        window.addEventListener('load', loadExample);
+        window.addEventListener('load', () => {
+            loadExample();
+            document.getElementById('runButton').addEventListener('click', runExample);
+        });
 
         // Clean up on page unload
         window.addEventListener('beforeunload', () => {

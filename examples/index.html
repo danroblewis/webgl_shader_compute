@@ -23,6 +23,28 @@
             transform: translateY(-4px);
             box-shadow: 0 4px 8px rgba(0,0,0,0.15);
         }
+        .example-card.featured {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            grid-column: 1 / -1;
+        }
+        .example-card.featured h2 {
+            color: white;
+            font-size: 28px;
+        }
+        .example-card.featured p {
+            color: rgba(255,255,255,0.95);
+            font-size: 16px;
+        }
+        .example-card.featured a {
+            background: white;
+            color: #667eea;
+            font-weight: bold;
+        }
+        .example-card.featured a:hover {
+            background: rgba(255,255,255,0.9);
+            color: #764ba2;
+        }
         .example-card h2 {
             color: #2c5aa0;
             margin-top: 0;
@@ -56,6 +78,11 @@
     <p>Choose an example to see GPU-accelerated computation in action!</p>
 
     <div class="examples-grid">
+        <div class="example-card featured">
+            <h2>🎮 Live Playground</h2>
+            <p>Write and test your own WebGL compute shaders in real-time! Edit GLSL and JavaScript code with syntax highlighting and see instant results.</p>
+            <a href="playground.html">Launch Playground →</a>
+        </div>
         <div class="example-card">
             <h2>1. Array Addition</h2>
             <p>Learn the basics of GPU computation by adding two arrays element-wise.</p>

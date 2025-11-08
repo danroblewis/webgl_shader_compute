@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebGL Compute Playground</title>
+    <link rel="stylesheet" href="styles.css">
+    <style>
+        body {
+            max-width: none;
+            padding: 0;
+            margin: 0;
+        }
+        
+        .header {
+            padding: 15px 20px;
+            background: white;
+            border-bottom: 1px solid #ddd;
+        }
+        
+        .header h1 {
+            margin: 0 0 5px 0;
+            font-size: 24px;
+        }
+        
+        .header p {
+            margin: 0;
+        }
+        
+        .playground-container {
+            display: flex;
+            flex-direction: column;
+            height: calc(100vh - 80px);
+        }
+        
+        .editors-row {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+        }
+        
+        .editor-panel {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            border-right: 1px solid #ddd;
+            overflow: hidden;
+        }
+        
+        .editor-panel:last-child {
+            border-right: none;
+        }
+        
+        .editor-panel h2 {
+            margin: 0;
+            padding: 10px 15px;
+            font-size: 14px;
+            font-weight: 600;
+            color: #333;
+            background: #f5f5f5;
+            border-bottom: 1px solid #ddd;
+        }
+        
+        .code-editor {
+            flex: 1;
+            overflow: hidden;
+            height: 100%;
+        }
+        
+        .cm-editor {
+            height: 100%;
+            font-size: 15px;
+        }
+        
+        .cm-scroller {
+            height: 100%;
+        }
+        
+        .cm-content {
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', 'Consolas', monospace;
+        }
+        
+        .result-panel {
+            background: white;
+            border-top: 1px solid #ddd;
+            min-height: 200px;
+            max-height: 300px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .result-panel h2 {
+            margin: 0;
+            padding: 10px 15px;
+            font-size: 14px;
+            font-weight: 600;
+            color: #333;
+            background: #f5f5f5;
+            border-bottom: 1px solid #ddd;
+            flex-shrink: 0;
+        }
+        
+        .result-panel #result {
+            flex: 1;
+            padding: 15px;
+            overflow-y: auto;
+        }
+        
+        .status {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            margin-left: 10px;
+            font-weight: normal;
+        }
+        
+        .status.success {
+            background: #c8e6c9;
+            color: #2e7d32;
+        }
+        
+        .status.error {
+            background: #ffcdd2;
+            color: #c62828;
+        }
+        
+        .status.running {
+            background: #fff9c4;
+            color: #f57f17;
+        }
+        
+        @media (max-width: 1024px) {
+            .editors-row {
+                flex-direction: column;
+            }
+            
+            .editor-panel {
+                border-right: none;
+                border-bottom: 1px solid #ddd;
+            }
+            
+            .editor-panel:last-child {
+                border-bottom: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>WebGL Compute Playground</h1>
+        <p><a href="index.html">← Back to Examples</a></p>
+    </div>
+    
+    <div class="playground-container">
+        <div class="editors-row">
+            <div class="editor-panel">
+                <h2>Fragment Shader (GLSL)</h2>
+                <div id="shaderEditor" class="code-editor"></div>
+            </div>
+            
+            <div class="editor-panel">
+                <h2>JavaScript (run & render functions)</h2>
+                <div id="jsEditor" class="code-editor"></div>
+            </div>
+        </div>
+        
+        <div class="result-panel">
+            <h2>Result <span id="status" class="status">Ready</span></h2>
+            <div id="result"></div>
+        </div>
+    </div>
+    
+    <canvas id="glCanvas" style="display: none;"></canvas>
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.23.4/ace.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.23.4/mode-glsl.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.23.4/mode-javascript.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.23.4/theme-monokai.min.js"></script>
+    
+    <script type="module">
+        
+        import { WebGLCompute } from '../webgl-compute.js';
+        import { renderGeneric, defaultShader, defaultRunner } from './utils.js';
+        
+        let compute;
+        let executeTimeout;
+        
+        let shaderEditor;
+        let jsEditor;
+        const resultDiv = document.getElementById('result');
+        const statusSpan = document.getElementById('status');
+        
+        // Initialize compute context
+        function initCompute() {
+            if (!compute) {
+                const canvas = document.getElementById('glCanvas');
+                try {
+                    compute = new WebGLCompute(canvas);
+                } catch (error) {
+                    showError('Failed to initialize WebGLCompute: ' + error.message);
+                    return null;
+                }
+            }
+            return compute;
+        }
+        
+        // Initialize Ace editors
+        function initEditors() {
+            // Shader editor (GLSL)
+            shaderEditor = ace.edit("shaderEditor");
+            shaderEditor.setTheme("ace/theme/monokai");
+            shaderEditor.session.setMode("ace/mode/glsl");
+            shaderEditor.setValue(defaultShader, -1);
+            shaderEditor.setOptions({
+                fontSize: "15px",
+                showPrintMargin: false,
+                enableBasicAutocompletion: true,
+                enableLiveAutocompletion: false
+            });
+            shaderEditor.session.on('change', () => {
+                scheduleExecution();
+            });
+            
+            // JavaScript editor
+            jsEditor = ace.edit("jsEditor");
+            jsEditor.setTheme("ace/theme/monokai");
+            jsEditor.session.setMode("ace/mode/javascript");
+            jsEditor.setValue(defaultRunner, -1);
+            jsEditor.setOptions({
+                fontSize: "15px",
+                showPrintMargin: false,
+                enableBasicAutocompletion: true,
+                enableLiveAutocompletion: false
+            });
+            jsEditor.session.on('change', () => {
+                scheduleExecution();
+            });
+        }
+        
+        // Set status message
+        function setStatus(message, type) {
+            statusSpan.textContent = message;
+            statusSpan.className = 'status ' + type;
+        }
+        
+        // Execute the code
+        async function execute() {
+            const compute = initCompute();
+            if (!compute) return;
+            
+            setStatus('Running...', 'running');
+            
+            try {
+                const shaderSource = shaderEditor.getValue();
+                const jsCode = jsEditor.getValue();
+                
+                // Create a function from the JavaScript code
+                // The code should define a run() function and optionally a render() function
+                const wrappedCode = `
+                    ${jsCode}
+                    return { run: typeof run !== 'undefined' ? run : null, 
+                             render: typeof render !== 'undefined' ? render : null };
+                `;
+                
+                const func = new Function('compute', 'renderGeneric', wrappedCode);
+                const module = func(compute, renderGeneric);
+                
+                if (!module.run) {
+                    throw new Error('No run() function defined in JavaScript code');
+                }
+                
+                // Execute the run function
+                const result = await module.run(compute, shaderSource);
+                
+                // Render the result
+                let html;
+                if (module.render) {
+                    html = module.render(result);
+                } else {
+                    html = renderGeneric(result);
+                }
+                
+                resultDiv.innerHTML = html;
+                setStatus('Success', 'success');
+                
+            } catch (error) {
+                console.error('Execution error:', error);
+                resultDiv.innerHTML = `<div class="error">Error: ${error.message}</div>`;
+                setStatus('Error', 'error');
+            }
+        }
+        
+        // Debounced execution
+        function scheduleExecution() {
+            clearTimeout(executeTimeout);
+            executeTimeout = setTimeout(execute, 500);
+        }
+        
+        // Show error message
+        function showError(message) {
+            resultDiv.innerHTML = `<div class="error">${message}</div>`;
+            setStatus('Error', 'error');
+        }
+        
+        // Initialize
+        window.addEventListener('load', () => {
+            initEditors();
+            execute();
+        });
+        
+        // Clean up on page unload
+        window.addEventListener('beforeunload', () => {
+            if (compute) {
+                compute.dispose();
+            }
+        });
+    </script>
+</body>
+</html>
+

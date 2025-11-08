@@ -383,7 +383,10 @@ class WebGLComputeShader {
     }
 }
 
-// Export for use in modules or browser
+// Export for use in ES6 modules
+export { WebGLCompute, WebGLComputeShader };
+
+// Also export for CommonJS (Node.js)
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = { WebGLCompute, WebGLComputeShader };
 }
