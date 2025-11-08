@@ -188,6 +188,11 @@
             color: #fff9c4;
         }
         
+        .status.loading {
+            background: #1976d2;
+            color: #bbdefb;
+        }
+        
         @media (max-width: 1024px) {
             .editors-row {
                 flex-direction: column;
@@ -229,8 +234,9 @@
                         <select id="exampleSelect">
                             <option value="">-- Select Example --</option>
                             <option value="array-addition">Array Addition</option>
+                            <option value="array-multiplication">Array Multiplication</option>
+                            <option value="complex-expression">Complex Expression</option>
                             <option value="cellular-automaton">Cellular Automaton</option>
-                            <option value="counter">Counter (Stateful)</option>
                         </select>
                     </div>
                     <div class="loop-toggle">
@@ -270,105 +276,6 @@
         // Cache compiled module to preserve state between executions
         let cachedModule = null;
         let cachedJsCode = null;
-        
-        // Example templates
-        const examples = {
-            'array-addition': {
-                shader: `precision highp float;
-uniform sampler2D u_a;
-uniform sampler2D u_b;
-varying vec2 v_texCoord;
-
-void main() {
-    float a = texture2D(u_a, v_texCoord).r;
-    float b = texture2D(u_b, v_texCoord).r;
-    float result = a + b;
-    gl_FragColor = vec4(result, 0.0, 0.0, 1.0);
-}`,
-                js: `// Run function: receives compute instance
-async function run(compute, shaderSource) {
-    const shader = compute.compile(shaderSource);
-    
-    const a = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9];
-    const b = [0, 2, 4, 6, 8, 10, 12, 14, 16, 18];
-    
-    const result = await shader.run({ a, b }, a.length);
-    
-    return [
-        { label: 'a', values: a },
-        { label: 'b', values: b },
-        { label: 'a + b', values: Array.from(result) }
-    ];
-}`
-            },
-            'cellular-automaton': {
-                shader: `precision highp float;
-uniform sampler2D u_state;
-varying vec2 v_texCoord;
-
-void main() {
-    float size = 32.0;
-    float cellWidth = 1.0 / size;
-    
-    // Sample neighbors (with wrapping)
-    float left = texture2D(u_state, v_texCoord - vec2(cellWidth, 0.0)).r;
-    float center = texture2D(u_state, v_texCoord).r;
-    float right = texture2D(u_state, v_texCoord + vec2(cellWidth, 0.0)).r;
-    
-    // Apply rule: cell is alive if center OR (left XOR right)
-    float leftXorRight = mod(left + right, 2.0);
-    float result = max(center, leftXorRight);
-    
-    gl_FragColor = vec4(result, 0.0, 0.0, 1.0);
-}`,
-                js: `var state = [
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    1,
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
-];
-
-async function run(compute, shaderSource) {
-    const shader = compute.compile(shaderSource);
-    const result = await shader.run({ state }, state.length);
-    state = Array.from(result);
-    
-    return { state };
-}
-
-function render(data) {
-    return '<div style="font-family: monospace; font-size: 16px; line-height: 1.5;">' +
-           data.state.map(x => x > 0.5 ? '█' : '·').join('') +
-           '</div>';
-}`
-            },
-            'counter': {
-                shader: `precision highp float;
-uniform sampler2D u_value;
-varying vec2 v_texCoord;
-
-void main() {
-    float value = texture2D(u_value, v_texCoord).r;
-    float result = value + 1.0;
-    gl_FragColor = vec4(result, 0.0, 0.0, 1.0);
-}`,
-                js: `var counter = 0;
-
-async function run(compute, shaderSource) {
-    const shader = compute.compile(shaderSource);
-    const value = [counter];
-    const result = await shader.run({ value }, 1);
-    counter = result[0];
-    
-    return { counter };
-}
-
-function render(data) {
-    return '<div style="font-size: 48px; font-weight: bold; color: #4CAF50;">' +
-           Math.floor(data.counter) +
-           '</div>';
-}`
-            }
-        };
         
         // Initialize compute context
         function initCompute() {
@@ -504,6 +411,10 @@ function render(data) {
         
         // Handle loop toggle
         function handleLoopToggle() {
+            // Reset module cache to restart with initial state
+            cachedModule = null;
+            cachedJsCode = null;
+            
             if (loopToggle.checked) {
                 startLoop();
             } else {
@@ -512,26 +423,79 @@ function render(data) {
         }
         
         // Load example into editors
-        function loadExample(exampleName) {
-            const example = examples[exampleName];
-            if (!example) return;
+        async function loadExample(exampleName) {
+            if (!exampleName) return;
             
-            // Stop loop if running
-            if (loopToggle.checked) {
-                loopToggle.checked = false;
-                stopLoop();
+            try {
+                // Stop loop if running
+                if (loopToggle.checked) {
+                    loopToggle.checked = false;
+                    stopLoop();
+                }
+                
+                setStatus('Loading...', 'loading');
+                
+                // Fetch shader and JS files
+                const [shaderResponse, jsResponse] = await Promise.all([
+                    fetch(`./${exampleName}.glsl`),
+                    fetch(`./${exampleName}.js`)
+                ]);
+                
+                if (!shaderResponse.ok || !jsResponse.ok) {
+                    throw new Error('Failed to load example files');
+                }
+                
+                const shaderSource = await shaderResponse.text();
+                let jsSource = await jsResponse.text();
+                
+                // Transform JS source for playground use
+                // Remove exports and imports
+                jsSource = jsSource
+                    .replace(/export\s+(const|function|async\s+function)\s+/g, '$1 ')
+                    .replace(/export\s*\{[^}]*\}/g, '')
+                    .replace(/import\s+.*from\s+['"].*['"];?/g, '');
+                
+                // Change run function signature to include shaderSource parameter
+                jsSource = jsSource.replace(
+                    /async\s+function\s+run\s*\(\s*compute\s*\)/g,
+                    'async function run(compute, shaderSource)'
+                );
+                
+                // Remove the shader fetch code since we pass shaderSource directly
+                jsSource = jsSource.replace(
+                    /const\s+response\s*=\s*await\s+fetch\([^)]*\);?\s*const\s+shaderSource\s*=\s*await\s+response\.text\(\);?/g,
+                    ''
+                );
+                
+                // Remove shaderFile export line and other metadata constants
+                jsSource = jsSource.replace(/const\s+(shaderFile|title|heading|description|buttonText)\s*=\s*[^;]+;?/g, '');
+                
+                // Remove comment-only lines and extra blank lines
+                jsSource = jsSource
+                    .split('\n')
+                    .filter(line => {
+                        const trimmed = line.trim();
+                        return trimmed !== '' || line === '\n';
+                    })
+                    .join('\n')
+                    .replace(/\n\n\n+/g, '\n\n')
+                    .trim();
+                
+                // Load code into editors
+                shaderEditor.setValue(shaderSource, -1);
+                jsEditor.setValue(jsSource, -1);
+                
+                // Reset cache to recompile
+                cachedModule = null;
+                cachedJsCode = null;
+                
+                setStatus('Ready', 'ready');
+                
+                // Run the example
+                execute();
+            } catch (error) {
+                showError('Failed to load example: ' + error.message);
             }
-            
-            // Load code into editors
-            shaderEditor.setValue(example.shader, -1);
-            jsEditor.setValue(example.js, -1);
-            
-            // Reset cache to recompile
-            cachedModule = null;
-            cachedJsCode = null;
-            
-            // Run the example
-            execute();
         }
         
         // Handle example selection
