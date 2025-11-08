@@ -227,6 +227,10 @@
         const statusSpan = document.getElementById('status');
         const loopToggle = document.getElementById('loopToggle');
         
+        // Cache compiled module to preserve state between executions
+        let cachedModule = null;
+        let cachedJsCode = null;
+        
         // Initialize compute context
         function initCompute() {
             if (!compute) {
@@ -280,6 +284,20 @@
             statusSpan.className = 'status ' + type;
         }
         
+        // Compile the JavaScript module (only when code changes)
+        function compileModule(jsCode) {
+            // Create a function from the JavaScript code
+            // The code should define a run() function and optionally a render() function
+            const wrappedCode = `
+                ${jsCode}
+                return { run: typeof run !== 'undefined' ? run : null, 
+                         render: typeof render !== 'undefined' ? render : null };
+            `;
+            
+            const func = new Function('compute', 'renderGeneric', wrappedCode);
+            return func(compute, renderGeneric);
+        }
+        
         // Execute the code
         async function execute() {
             const compute = initCompute();
@@ -291,28 +309,23 @@
                 const shaderSource = shaderEditor.getValue();
                 const jsCode = jsEditor.getValue();
                 
-                // Create a function from the JavaScript code
-                // The code should define a run() function and optionally a render() function
-                const wrappedCode = `
-                    ${jsCode}
-                    return { run: typeof run !== 'undefined' ? run : null, 
-                             render: typeof render !== 'undefined' ? render : null };
-                `;
+                // Only recompile module if JavaScript code has changed
+                if (jsCode !== cachedJsCode) {
+                    cachedModule = compileModule(jsCode);
+                    cachedJsCode = jsCode;
+                }
                 
-                const func = new Function('compute', 'renderGeneric', wrappedCode);
-                const module = func(compute, renderGeneric);
-                
-                if (!module.run) {
+                if (!cachedModule || !cachedModule.run) {
                     throw new Error('No run() function defined in JavaScript code');
                 }
                 
-                // Execute the run function
-                const result = await module.run(compute, shaderSource);
+                // Execute the run function (reuses same module instance)
+                const result = await cachedModule.run(compute, shaderSource);
                 
                 // Render the result
                 let html;
-                if (module.render) {
-                    html = module.render(result);
+                if (cachedModule.render) {
+                    html = cachedModule.render(result);
                 } else {
                     html = renderGeneric(result);
                 }
