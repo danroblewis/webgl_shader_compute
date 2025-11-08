@@ -3,23 +3,12 @@ export const title = 'Complex Expression';
 export const heading = 'Multi-Operation Expression';
 export const description = 'Compute a complex expression on the GPU: (a * 2.0) + (b * 3.0) - 5.0';
 export const buttonText = 'Run Expression';
-
-const SHADER = `
-precision highp float;
-uniform sampler2D u_a;
-uniform sampler2D u_b;
-varying vec2 v_texCoord;
-
-void main() {
-    float a = texture2D(u_a, v_texCoord).r;
-    float b = texture2D(u_b, v_texCoord).r;
-    float result = (a * 2.0) + (b * 3.0) - 5.0;
-    gl_FragColor = vec4(result, 0.0, 0.0, 1.0);
-}
-`;
+export const shaderFile = 'complex-expression.glsl';
 
 export async function run(compute) {
-    const shader = compute.compile(SHADER);
+    const response = await fetch('./complex-expression.glsl');
+    const shaderSource = await response.text();
+    const shader = compute.compile(shaderSource);
     
     const a = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9];
     const b = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];

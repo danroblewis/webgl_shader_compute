@@ -45,7 +45,7 @@
             font-family: 'Courier New', monospace;
             font-size: 13px;
         }
-        #sourceCode {
+        #sourceCode, #shaderCode {
             font-size: 13px;
             margin: 0;
             max-height: 500px;
@@ -76,8 +76,13 @@
         </div>
         
         <div class="example">
-            <h2>Source Code</h2>
+            <h2>JavaScript</h2>
             <pre><code id="sourceCode" class="language-javascript"></code></pre>
+        </div>
+        
+        <div class="example">
+            <h2>Fragment Shader</h2>
+            <pre><code id="shaderCode" class="language-glsl"></code></pre>
         </div>
     </div>
 
@@ -129,6 +134,11 @@
                 
                 // Load and display source code
                 await loadSourceCode(exampleName);
+                
+                // Load and display shader code
+                if (module.shaderFile) {
+                    await loadShaderCode(module.shaderFile);
+                }
                 
                 // Automatically run the example
                 await runExample();
@@ -211,6 +221,24 @@
             }
         }
 
+        // Load and display shader code
+        async function loadShaderCode(shaderFile) {
+            try {
+                const response = await fetch(`./${shaderFile}`);
+                const shaderText = await response.text();
+                const codeElement = document.getElementById('shaderCode');
+                codeElement.textContent = shaderText;
+                
+                // Apply syntax highlighting if Prism is available
+                if (window.Prism) {
+                    Prism.highlightElement(codeElement);
+                }
+            } catch (error) {
+                console.error('Failed to load shader code:', error);
+                document.getElementById('shaderCode').textContent = '// Failed to load shader code';
+            }
+        }
+
         // Show error message
         function showError(message) {
             document.getElementById('pageHeading').textContent = 'Error';
@@ -230,6 +258,7 @@
     </script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-javascript.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-glsl.min.js"></script>
 </body>
 </html>
 
