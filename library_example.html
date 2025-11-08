@@ -51,32 +51,32 @@
     <div class="example">
         <h2>Example 1: Array Addition</h2>
         <p>Add two arrays element-wise on the GPU.</p>
-        <button onclick="runExample1()">Run Addition</button>
-        <div id="result1" class="result"></div>
+        <button onclick="runArrayAddition()">Run Addition</button>
+        <div id="resultAddition" class="result"></div>
     </div>
 
     <!-- Example 2: Multiplication -->
     <div class="example">
         <h2>Example 2: Array Multiplication</h2>
         <p>Multiply two arrays element-wise on the GPU.</p>
-        <button onclick="runExample2()">Run Multiplication</button>
-        <div id="result2" class="result"></div>
+        <button onclick="runArrayMultiplication()">Run Multiplication</button>
+        <div id="resultMultiplication" class="result"></div>
     </div>
 
     <!-- Example 3: Vector Operations -->
     <div class="example">
         <h2>Example 3: Complex Expression</h2>
         <p>Compute: (a * 2.0) + (b * 3.0) - 5.0</p>
-        <button onclick="runExample3()">Run Expression</button>
-        <div id="result3" class="result"></div>
+        <button onclick="runComplexExpression()">Run Expression</button>
+        <div id="resultExpression" class="result"></div>
     </div>
 
     <!-- Example 4: Cellular Automata Step -->
     <div class="example">
         <h2>Example 4: Game of Life Step (1D)</h2>
         <p>Compute one step of a 1D cellular automaton (Rule 110).</p>
-        <button onclick="runExample4()">Run Automaton</button>
-        <div id="result4" class="result"></div>
+        <button onclick="runCellularAutomaton()">Run Automaton</button>
+        <div id="resultAutomaton" class="result"></div>
     </div>
 
     <script src="webgl-compute.js"></script>
@@ -98,9 +98,9 @@
         }
 
         // Example 1: Simple Addition
-        async function runExample1() {
+        async function runArrayAddition() {
             const compute = initCompute();
-            const resultDiv = document.getElementById('result1');
+            const resultDiv = document.getElementById('resultAddition');
             resultDiv.innerHTML = 'Computing...';
 
             const shader = `
@@ -133,9 +133,9 @@
         }
 
         // Example 2: Multiplication
-        async function runExample2() {
+        async function runArrayMultiplication() {
             const compute = initCompute();
-            const resultDiv = document.getElementById('result2');
+            const resultDiv = document.getElementById('resultMultiplication');
             resultDiv.innerHTML = 'Computing...';
 
             const shader = `
@@ -168,9 +168,9 @@
         }
 
         // Example 3: Complex Expression
-        async function runExample3() {
+        async function runComplexExpression() {
             const compute = initCompute();
-            const resultDiv = document.getElementById('result3');
+            const resultDiv = document.getElementById('resultExpression');
             resultDiv.innerHTML = 'Computing...';
 
             const shader = `
@@ -203,9 +203,9 @@
         }
 
         // Example 4: 1D Cellular Automaton
-        async function runExample4() {
+        async function runCellularAutomaton() {
             const compute = initCompute();
-            const resultDiv = document.getElementById('result4');
+            const resultDiv = document.getElementById('resultAutomaton');
             resultDiv.innerHTML = 'Computing...';
 
             // Simple rule: if exactly one neighbor is 1, cell becomes 1
