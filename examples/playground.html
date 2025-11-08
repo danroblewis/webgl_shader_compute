@@ -100,6 +100,28 @@
             background: #252525;
             border-bottom: 1px solid #333;
             flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        
+        .loop-toggle {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 13px;
+            font-weight: normal;
+            color: #aaa;
+        }
+        
+        .loop-toggle input[type="checkbox"] {
+            cursor: pointer;
+            width: 16px;
+            height: 16px;
+        }
+        
+        .loop-toggle label {
+            cursor: pointer;
         }
         
         .result-panel #result {
@@ -169,7 +191,15 @@
         </div>
         
         <div class="result-panel">
-            <h2>Result <span id="status" class="status">Ready</span></h2>
+            <h2>
+                <div>
+                    Result <span id="status" class="status">Ready</span>
+                </div>
+                <div class="loop-toggle">
+                    <input type="checkbox" id="loopToggle">
+                    <label for="loopToggle">Loop (5 FPS)</label>
+                </div>
+            </h2>
             <div id="result"></div>
         </div>
     </div>
@@ -188,11 +218,14 @@
         
         let compute;
         let executeTimeout;
+        let loopInterval;
+        let isLooping = false;
         
         let shaderEditor;
         let jsEditor;
         const resultDiv = document.getElementById('result');
         const statusSpan = document.getElementById('status');
+        const loopToggle = document.getElementById('loopToggle');
         
         // Initialize compute context
         function initCompute() {
@@ -300,6 +333,32 @@
             executeTimeout = setTimeout(execute, 0);
         }
         
+        // Start looping execution
+        function startLoop() {
+            if (loopInterval) return;
+            isLooping = true;
+            loopInterval = setInterval(execute, 200); // 5 FPS = 200ms
+            execute(); // Run immediately when starting
+        }
+        
+        // Stop looping execution
+        function stopLoop() {
+            if (loopInterval) {
+                clearInterval(loopInterval);
+                loopInterval = null;
+            }
+            isLooping = false;
+        }
+        
+        // Handle loop toggle
+        function handleLoopToggle() {
+            if (loopToggle.checked) {
+                startLoop();
+            } else {
+                stopLoop();
+            }
+        }
+        
         // Show error message
         function showError(message) {
             resultDiv.innerHTML = `<div class="error">${message}</div>`;
@@ -309,11 +368,13 @@
         // Initialize
         window.addEventListener('load', () => {
             initEditors();
+            loopToggle.addEventListener('change', handleLoopToggle);
             execute();
         });
         
         // Clean up on page unload
         window.addEventListener('beforeunload', () => {
+            stopLoop();
             if (compute) {
                 compute.dispose();
             }
