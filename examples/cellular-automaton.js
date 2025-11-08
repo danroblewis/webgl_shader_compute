@@ -29,12 +29,13 @@ void main() {
 `;
 
 export async function run(compute) {
+    const state = [
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        1,
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+    ];
 
-    const size = 32;
-    const state = new Array(size).fill(0);
-    state[size / 2] = 1; // Single cell in middle
-
-    const result = await compute.computeArrays({ shader: SHADER, inputs: { state }, size });
+    const result = await compute.computeArrays({ shader: SHADER, inputs: { state }, size: state.length });
 
     return {
         initial: state,
