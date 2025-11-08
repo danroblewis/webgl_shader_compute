@@ -4,7 +4,7 @@ export const heading = 'GPU-Accelerated Array Addition';
 export const description = 'Add two arrays element-wise on the GPU using a fragment shader.';
 export const buttonText = 'Run Addition';
 
-export async function run(compute, resultDiv) {
+export async function run(compute) {
     const shader = `
         precision highp float;
         uniform sampler2D u_a;
@@ -25,12 +25,13 @@ export async function run(compute, resultDiv) {
 
     const result = await compute.computeArrays({ shader, inputs: { a, b }, size });
 
-    let output = '<pre>';
-    output += 'a:      ' + a.join(', ') + '\n';
-    output += 'b:      ' + b.join(', ') + '\n';
-    output += 'a + b:  ' + Array.from(result).map(x => x.toFixed(1)).join(', ');
-    output += '</pre>';
-
-    resultDiv.innerHTML = output;
+    return {
+        type: 'arrays',
+        data: [
+            { label: 'a', values: a },
+            { label: 'b', values: b },
+            { label: 'a + b', values: Array.from(result) }
+        ]
+    };
 }
 

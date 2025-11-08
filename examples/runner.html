@@ -121,6 +121,44 @@
             }
         }
 
+        // Render result data based on type
+        function renderResult(result) {
+            if (result.type === 'arrays') {
+                return renderArrays(result.data);
+            } else if (result.type === 'cellular-automaton') {
+                return renderCellularAutomaton(result.data);
+            } else {
+                return `<div class="error">Unknown result type: ${result.type}</div>`;
+            }
+        }
+
+        // Render array data
+        function renderArrays(arrays) {
+            let output = '<pre>';
+            const maxLabelLength = Math.max(...arrays.map(a => a.label.length));
+            
+            arrays.forEach(arr => {
+                const label = arr.label.padEnd(maxLabelLength);
+                const values = arr.values.map(v => 
+                    typeof v === 'number' ? v.toFixed(1) : v
+                ).join(', ');
+                output += `${label}:  ${values}\n`;
+            });
+            
+            output += '</pre>';
+            return output;
+        }
+
+        // Render cellular automaton data
+        function renderCellularAutomaton(data) {
+            const { initial, result } = data;
+            let output = '<div class="code">';
+            output += 'Initial: ' + initial.map(x => x ? '█' : '·').join('') + '<br>';
+            output += 'Step 1:  ' + result.map(x => x > 0.5 ? '█' : '·').join('');
+            output += '</div>';
+            return output;
+        }
+
         // Run the current example
         async function runExample() {
             if (!currentExample || !currentExample.run) {
@@ -133,7 +171,8 @@
 
             try {
                 const compute = initCompute();
-                await currentExample.run(compute, resultDiv);
+                const result = await currentExample.run(compute);
+                resultDiv.innerHTML = renderResult(result);
             } catch (error) {
                 console.error('Example error:', error);
                 resultDiv.innerHTML = `<div class="error">Error: ${error.message}</div>`;

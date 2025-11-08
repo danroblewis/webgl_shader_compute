@@ -4,7 +4,7 @@ export const heading = 'Multi-Operation Expression';
 export const description = 'Compute a complex expression on the GPU: (a * 2.0) + (b * 3.0) - 5.0';
 export const buttonText = 'Run Expression';
 
-export async function run(compute, resultDiv) {
+export async function run(compute) {
     const shader = `
         precision highp float;
         uniform sampler2D u_a;
@@ -25,12 +25,13 @@ export async function run(compute, resultDiv) {
 
     const result = await compute.computeArrays({ shader, inputs: { a, b }, size });
 
-    let output = '<pre>';
-    output += 'a:                         ' + a.join(', ') + '\n';
-    output += 'b:                         ' + b.join(', ') + '\n';
-    output += '(a * 2) + (b * 3) - 5:     ' + Array.from(result).map(x => x.toFixed(1)).join(', ');
-    output += '</pre>';
-
-    resultDiv.innerHTML = output;
+    return {
+        type: 'arrays',
+        data: [
+            { label: 'a', values: a },
+            { label: 'b', values: b },
+            { label: '(a * 2) + (b * 3) - 5', values: Array.from(result) }
+        ]
+    };
 }
 
