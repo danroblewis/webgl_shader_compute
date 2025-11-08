@@ -29,13 +29,15 @@ void main() {
 `;
 
 export async function run(compute) {
+    const shader = compute.compile(SHADER);
+    
     const state = [
         0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
         1,
         0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
     ];
 
-    const result = await compute.computeArrays({ shader: SHADER, inputs: { state }, size: state.length });
+    const result = await shader.run({ state }, state.length);
 
     return {
         initial: state,

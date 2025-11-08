@@ -19,10 +19,12 @@ void main() {
 `;
 
 export async function run(compute) {
+    const shader = compute.compile(SHADER);
+    
     const a = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9];
     const b = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
 
-    const result = await compute.computeArrays({ shader: SHADER, inputs: { a, b }, size: a.length });
+    const result = await shader.run({ a, b }, a.length);
 
     return [
         { label: 'a', values: a },

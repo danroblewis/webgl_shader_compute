@@ -308,6 +308,16 @@ class WebGLCompute {
     }
     
     /**
+     * Compile a reusable shader program
+     * @param {string} fragmentShaderSource - Fragment shader GLSL code
+     * @returns {WebGLComputeShader} - Shader object with run() method
+     */
+    compile(fragmentShaderSource) {
+        const program = this.createProgram(fragmentShaderSource);
+        return new WebGLComputeShader(this, program);
+    }
+    
+    /**
      * Clean up all resources
      */
     dispose() {
@@ -330,8 +340,51 @@ class WebGLCompute {
     }
 }
 
+/**
+ * WebGL Compute Shader
+ * Represents a compiled shader program that can be executed multiple times
+ */
+class WebGLComputeShader {
+    constructor(compute, program) {
+        this.compute = compute;
+        this.program = program;
+    }
+    
+    /**
+     * Run the shader with given inputs
+     * @param {Object} inputs - Input arrays (e.g., { a: [1,2,3], b: [4,5,6] })
+     * @param {number} size - Number of elements to compute
+     * @returns {Float32Array} Result array
+     */
+    async run(inputs, size) {
+        // Create input textures
+        const textureUniforms = {};
+        for (const [name, array] of Object.entries(inputs)) {
+            const textureData = this.compute.arrayToTextureData(array);
+            const texture = this.compute.createTexture(textureData, size, 1);
+            textureUniforms[`u_${name}`] = texture;
+        }
+        
+        // Create output texture
+        const outputTexture = this.compute.createTexture(null, size, 1);
+        
+        // Run computation
+        this.compute.compute({
+            program: this.program,
+            uniforms: textureUniforms,
+            output: outputTexture,
+            width: size,
+            height: 1
+        });
+        
+        // Read result
+        const resultData = this.compute.readTexture(outputTexture, size, 1);
+        return this.compute.textureDataToArray(resultData);
+    }
+}
+
 // Export for use in modules or browser
 if (typeof module !== 'undefined' && module.exports) {
-    module.exports = WebGLCompute;
+    module.exports = { WebGLCompute, WebGLComputeShader };
 }
 
