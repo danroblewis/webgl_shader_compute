@@ -36,11 +36,17 @@ export async function run(compute) {
     const result = await compute.computeArrays({ shader, inputs: { state }, size });
 
     return {
-        type: 'cellular-automaton',
-        data: {
-            initial: state,
-            result: Array.from(result)
-        }
+        initial: state,
+        result: Array.from(result)
     };
+}
+
+// Custom renderer for cellular automaton visualization
+export function render(data) {
+    let output = '<div class="code">';
+    output += 'Initial: ' + data.initial.map(x => x ? '█' : '·').join('') + '<br>';
+    output += 'Step 1:  ' + data.result.map(x => x > 0.5 ? '█' : '·').join('');
+    output += '</div>';
+    return output;
 }
 

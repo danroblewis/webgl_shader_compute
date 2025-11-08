@@ -25,13 +25,10 @@ export async function run(compute) {
 
     const result = await compute.computeArrays({ shader, inputs: { a, b }, size });
 
-    return {
-        type: 'arrays',
-        data: [
-            { label: 'a', values: a },
-            { label: 'b', values: b },
-            { label: '(a * 2) + (b * 3) - 5', values: Array.from(result) }
-        ]
-    };
+    return [
+        { label: 'a', values: a },
+        { label: 'b', values: b },
+        { label: '(a * 2) + (b * 3) - 5', values: Array.from(result) }
+    ];
 }
 
