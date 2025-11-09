@@ -60,13 +60,5 @@ export class GameOfLifeSimulation extends GridSimulation {
             canvas: options.canvas
         });
     }
-    
-    /**
-     * Toggle cell state (alive <-> dead)
-     */
-    toggleCell(x, y) {
-        const current = this.getCellState(x, y);
-        this.setCell(x, y, current > 0.5 ? 0 : 1);
-    }
 }
 
