@@ -11,26 +11,26 @@ let jsEditor, glslEditor;
 require.config({ paths: { vs: 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.45.0/min/vs' } });
 
 require(['vs/editor/editor.main'], function () {
-    jsEditor = monaco.editor.create(document.getElementById('jsEditor'), {
-        value: defaultJS,
-        language: 'javascript',
-        theme: 'vs-dark',
-        automaticLayout: true,
-        minimap: { enabled: false },
-        fontSize: 13,
-        lineNumbers: 'on',
-        scrollBeyondLastLine: false,
-        wordWrap: 'on',
-        tabSize: 4
-    });
-
     glslEditor = monaco.editor.create(document.getElementById('glslEditor'), {
         value: defaultGLSL,
         language: 'cpp', // Use C++ for GLSL syntax highlighting
         theme: 'vs-dark',
         automaticLayout: true,
         minimap: { enabled: false },
-        fontSize: 13,
+        fontSize: 11,
+        lineNumbers: 'on',
+        scrollBeyondLastLine: false,
+        wordWrap: 'on',
+        tabSize: 4
+    });
+
+    jsEditor = monaco.editor.create(document.getElementById('jsEditor'), {
+        value: defaultJS,
+        language: 'javascript',
+        theme: 'vs-dark',
+        automaticLayout: true,
+        minimap: { enabled: false },
+        fontSize: 11,
         lineNumbers: 'on',
         scrollBeyondLastLine: false,
         wordWrap: 'on',
@@ -40,7 +40,7 @@ require(['vs/editor/editor.main'], function () {
 
 // Canvas setup
 const SIZE = 128;
-const DISPLAY_SIZE = 512;
+const DISPLAY_SIZE = 360;
 const canvas = document.getElementById('canvas');
 const ctx = canvas.getContext('2d');
 

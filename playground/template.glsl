@@ -1,67 +1,41 @@
 precision highp float;
-
 uniform sampler2D u_state;
 uniform float u_width;
 uniform float u_height;
-
 varying vec2 v_texCoord;
 
-// Material constants
-const float EMPTY = 0.0;
-const float SAND = 1.0;
-const float WATER = 2.0;
-const float STONE = 3.0;
-
-vec4 getCell(vec2 offset) {
-    vec2 pixelSize = vec2(1.0) / vec2(u_width, u_height);
-    return texture2D(u_state, v_texCoord + offset * pixelSize);
-}
-
 void main() {
-    vec4 current = getCell(vec2(0.0, 0.0));
-    float material = current.r;
+    float cellWidth = 1.0 / u_width;
+    float cellHeight = 1.0 / u_height;
     
-    // Stone never moves
-    if (material == STONE) {
-        gl_FragColor = current;
-        return;
-    }
-    
-    vec4 below = getCell(vec2(0.0, 1.0));
-    vec4 left = getCell(vec2(-1.0, 0.0));
-    vec4 right = getCell(vec2(1.0, 0.0));
-    
-    // Sand falls down or slides diagonally
-    if (material == SAND) {
-        if (below.r == EMPTY) {
-            gl_FragColor = vec4(EMPTY, 0.0, 0.0, 0.0);
-        } else if (getCell(vec2(-1.0, 1.0)).r == EMPTY) {
-            gl_FragColor = vec4(EMPTY, 0.0, 0.0, 0.0);
-        } else if (getCell(vec2(1.0, 1.0)).r == EMPTY) {
-            gl_FragColor = vec4(EMPTY, 0.0, 0.0, 0.0);
-        } else {
-            gl_FragColor = current;
+    // Count neighbors
+    int neighbors = 0;
+    for (int y = -1; y <= 1; y++) {
+        for (int x = -1; x <= 1; x++) {
+            if (x == 0 && y == 0) continue;
+            
+            vec2 offset = vec2(float(x) * cellWidth, float(y) * cellHeight);
+            vec2 coord = v_texCoord + offset;
+            
+            // Wrap coordinates (toroidal topology)
+            coord = fract(coord);
+            
+            float cell = texture2D(u_state, coord).r;
+            if (cell > 0.5) neighbors++;
         }
     }
-    // Empty cells can be filled from above
-    else if (material == EMPTY) {
-        vec4 above = getCell(vec2(0.0, -1.0));
-        if (above.r == SAND) {
-            gl_FragColor = above;
-        } else {
-            vec4 aboveLeft = getCell(vec2(-1.0, -1.0));
-            vec4 aboveRight = getCell(vec2(1.0, -1.0));
-            if (aboveLeft.r == SAND && right.r != EMPTY) {
-                gl_FragColor = aboveLeft;
-            } else if (aboveRight.r == SAND && left.r != EMPTY) {
-                gl_FragColor = aboveRight;
-            } else {
-                gl_FragColor = current;
-            }
-        }
+    
+    float current = texture2D(u_state, v_texCoord).r;
+    float alive = 0.0;
+    
+    // Conway's rules: B3/S23
+    // Birth if exactly 3 neighbors, Survival if 2 or 3 neighbors
+    if (current > 0.5) {
+        alive = (neighbors == 2 || neighbors == 3) ? 1.0 : 0.0;
+    } else {
+        alive = (neighbors == 3) ? 1.0 : 0.0;
     }
-    else {
-        gl_FragColor = current;
-    }
+    
+    gl_FragColor = vec4(alive, 0.0, 0.0, 1.0);
 }
 

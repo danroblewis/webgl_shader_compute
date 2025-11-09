@@ -10,72 +10,67 @@
 <body>
     <div class="editors-container">
         <div class="editor-pane">
-            <div class="editor-header">JavaScript Simulation Class</div>
-            <div id="jsEditor" class="editor-container"></div>
-        </div>
-        <div class="editor-pane">
             <div class="editor-header">GLSL Fragment Shader</div>
             <div id="glslEditor" class="editor-container"></div>
+        </div>
+        <div class="editor-pane">
+            <div class="editor-header">JavaScript Simulation Class</div>
+            <div id="jsEditor" class="editor-container"></div>
         </div>
     </div>
 
     <div class="simulation-container">
         <div class="canvas-area">
-            <canvas id="canvas" width="512" height="512"></canvas>
+            <canvas id="canvas" width="360" height="360"></canvas>
         </div>
         <div class="controls-panel">
-            <div class="control-group">
-                <h3>Compile & Run</h3>
-                <div class="control-row">
-                    <button class="btn" id="runBtn" style="flex: 2;">▶️ Run Simulation</button>
-                </div>
-                <div class="control-row">
-                    <button class="btn secondary" id="resetBtn">🔄 Reset</button>
-                </div>
-            </div>
-
-            <div class="control-group">
-                <h3>Materials</h3>
-                <div class="material-grid" id="materialsGrid">
-                    <!-- Populated dynamically -->
-                </div>
-            </div>
-
-            <div class="control-group">
-                <h3>Drawing</h3>
-                <div class="slider-group">
-                    <div class="slider-label">
-                        <span>Brush Size</span>
-                        <span id="brushValue">3</span>
+            <div class="controls-top">
+                <div class="control-group">
+                    <h3>Compile & Run</h3>
+                    <div class="control-row">
+                        <button class="btn" id="runBtn">▶️ Run</button>
+                        <button class="btn secondary" id="resetBtn">🔄 Reset</button>
                     </div>
-                    <input type="range" id="brushSlider" min="1" max="20" value="3">
+                </div>
+
+                <div class="control-group">
+                    <h3>Materials</h3>
+                    <div class="material-grid" id="materialsGrid">
+                        <!-- Populated dynamically -->
+                    </div>
+                </div>
+
+                <div class="control-group">
+                    <h3>Brush</h3>
+                    <div class="slider-group">
+                        <div class="slider-label">
+                            <span>Size</span>
+                            <span id="brushValue">3</span>
+                        </div>
+                        <input type="range" id="brushSlider" min="1" max="20" value="3" style="width: 120px;">
+                    </div>
+                </div>
+
+                <div class="control-group">
+                    <h3>Simulation</h3>
+                    <div class="control-row">
+                        <button class="btn" id="playBtn">▶️ Play</button>
+                        <button class="btn secondary" id="pauseBtn" disabled>⏸ Pause</button>
+                        <button class="btn secondary" id="stepBtn">⏭ Step</button>
+                        <button class="btn secondary" id="clearBtn">🗑 Clear</button>
+                        <button class="btn secondary" id="randomizeBtn">🎲 Randomize</button>
+                    </div>
                 </div>
             </div>
 
-            <div class="control-group">
-                <h3>Simulation</h3>
-                <div class="control-row">
-                    <button class="btn" id="playBtn">▶️ Play</button>
-                    <button class="btn secondary" id="pauseBtn" disabled>⏸ Pause</button>
-                </div>
-                <div class="control-row">
-                    <button class="btn secondary" id="stepBtn">⏭ Step</button>
-                    <button class="btn secondary" id="clearBtn">🗑 Clear</button>
-                </div>
-                <div class="control-row">
-                    <button class="btn secondary" id="randomizeBtn">🎲 Randomize</button>
-                </div>
-            </div>
+            <div id="errorContainer"></div>
 
-            <div class="control-group">
-                <h3>Stats</h3>
+            <div class="controls-bottom">
                 <div class="stats">
                     <div>Generation: <strong id="generation">0</strong></div>
                     <div>FPS: <strong id="fps">-</strong></div>
                 </div>
             </div>
-
-            <div id="errorContainer"></div>
         </div>
     </div>
 
