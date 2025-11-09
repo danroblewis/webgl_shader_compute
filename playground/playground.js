@@ -36,6 +36,26 @@ require(['vs/editor/editor.main'], function () {
         wordWrap: 'on',
         tabSize: 4
     });
+
+    // Auto-recompile with 0.5-second debounce
+    let recompileTimeout = null;
+    const scheduleRecompile = () => {
+        clearTimeout(recompileTimeout);
+        recompileTimeout = setTimeout(() => {
+            compileAndRun();
+        }, 500);
+    };
+
+    glslEditor.onDidChangeModelContent(() => {
+        scheduleRecompile();
+    });
+
+    jsEditor.onDidChangeModelContent(() => {
+        scheduleRecompile();
+    });
+
+    // Initial compile
+    compileAndRun();
 });
 
 // Canvas setup
@@ -55,11 +75,12 @@ let SimulationClass = null;
 let materialColors = {};
 let currentMaterial = null;
 let brushSize = 3;
+let stepsPerFrame = 1;
 let isDrawing = false;
 let isPaused = true;
 let lastTime = 0;
-let frameCount = 0;
-let fpsTime = 0;
+let generationCount = 0;
+let hzTime = 0;
 
 // Error handling
 function showError(message) {
@@ -71,23 +92,34 @@ function clearError() {
     document.getElementById('errorContainer').innerHTML = '';
 }
 
-// Run simulation
-document.getElementById('runBtn').addEventListener('click', async () => {
+// Compile and run simulation
+async function compileAndRun() {
     try {
         clearError();
         
         if (!jsEditor || !glslEditor) {
-            throw new Error('Editors not initialized yet');
+            return; // Editors not ready yet
         }
         
         const jsCode = jsEditor.getValue();
         const glslCode = glslEditor.getValue();
         
+        // Save current cell data before disposing
+        let savedBuffer = null;
+        if (sim) {
+            try {
+                const currentBuffer = sim.getCurrentBuffer();
+                savedBuffer = new Float32Array(currentBuffer);
+            } catch (e) {
+                console.warn('Could not save buffer:', e);
+            }
+            sim.dispose();
+            sim = null;
+        }
+        
         // Create simulation class
         const classCode = `
-            class PlaygroundSimulation extends GridSimulation {
-                ${jsCode}
-            }
+            ${jsCode}
             return PlaygroundSimulation;
         `;
         
@@ -106,6 +138,24 @@ document.getElementById('runBtn').addEventListener('click', async () => {
             initialState: 'empty'
         });
         
+        // Restore previous cell data if available, or randomize on first load
+        if (savedBuffer) {
+            try {
+                const newBuffer = sim.getCurrentBuffer();
+                newBuffer.set(savedBuffer);
+                sim.syncBuffer(newBuffer);
+            } catch (e) {
+                console.warn('Could not restore buffer:', e);
+            }
+        } else {
+            // First load: randomize and start playing
+            if (typeof sim.randomize === 'function') {
+                sim.randomize();
+            }
+            isPaused = false;
+            document.getElementById('playToggle').checked = true;
+        }
+        
         // Setup materials
         setupMaterials();
         
@@ -117,7 +167,7 @@ document.getElementById('runBtn').addEventListener('click', async () => {
         showError(`Compilation Error:\n${error.message}\n\n${error.stack}`);
         console.error('Compilation error:', error);
     }
-});
+}
 
 // Setup materials from CellType
 function setupMaterials() {
@@ -141,20 +191,18 @@ function setupMaterials() {
         const materialValue = value[0]; // R channel
         materialColors[materialValue] = defaultColors[name] || [255, 0, 255];
         
-        if (name !== 'EMPTY') {
-            if (!firstMaterial) firstMaterial = value;
-            
-            const btn = document.createElement('button');
-            btn.className = 'material-btn';
-            btn.textContent = name;
-            btn.dataset.material = materialValue;
-            btn.addEventListener('click', () => {
-                document.querySelectorAll('.material-btn').forEach(b => b.classList.remove('active'));
-                btn.classList.add('active');
-                currentMaterial = value;
-            });
-            grid.appendChild(btn);
-        }
+        if (!firstMaterial) firstMaterial = value;
+        
+        const btn = document.createElement('button');
+        btn.className = 'material-btn';
+        btn.textContent = name;
+        btn.dataset.material = materialValue;
+        btn.addEventListener('click', () => {
+            document.querySelectorAll('.material-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            currentMaterial = value;
+        });
+        grid.appendChild(btn);
     });
     
     // Select first material
@@ -192,16 +240,19 @@ function animate(currentTime) {
     
     if (!sim || isPaused) return;
     
-    sim.step();
+    // Run multiple steps per frame based on speed slider
+    for (let i = 0; i < stepsPerFrame; i++) {
+        sim.step();
+    }
     render();
     
-    // Update stats
-    frameCount++;
-    const deltaTime = currentTime - fpsTime;
+    // Update stats - track generations per second
+    generationCount += stepsPerFrame;
+    const deltaTime = currentTime - hzTime;
     if (deltaTime >= 1000) {
-        document.getElementById('fps').textContent = Math.round(frameCount / (deltaTime / 1000));
-        frameCount = 0;
-        fpsTime = currentTime;
+        document.getElementById('fps').textContent = Math.round(generationCount / (deltaTime / 1000));
+        generationCount = 0;
+        hzTime = currentTime;
     }
     
     document.getElementById('generation').textContent = sim.generation;
@@ -212,8 +263,8 @@ requestAnimationFrame(animate);
 // Drawing
 function getGridCoords(e) {
     const rect = canvas.getBoundingClientRect();
-    const x = Math.floor((e.clientX - rect.left) / DISPLAY_SIZE * SIZE);
-    const y = Math.floor((e.clientY - rect.top) / DISPLAY_SIZE * SIZE);
+    const x = Math.floor((e.clientX - rect.left) / rect.width * SIZE);
+    const y = Math.floor((e.clientY - rect.top) / rect.height * SIZE);
     return { x, y };
 }
 
@@ -265,17 +316,14 @@ document.getElementById('brushSlider').addEventListener('input', (e) => {
     document.getElementById('brushValue').textContent = brushSize;
 });
 
-document.getElementById('playBtn').addEventListener('click', () => {
-    if (!sim) return;
-    isPaused = false;
-    document.getElementById('playBtn').disabled = true;
-    document.getElementById('pauseBtn').disabled = false;
+document.getElementById('speedSlider').addEventListener('input', (e) => {
+    stepsPerFrame = parseInt(e.target.value);
+    document.getElementById('speedValue').textContent = stepsPerFrame;
 });
 
-document.getElementById('pauseBtn').addEventListener('click', () => {
-    isPaused = true;
-    document.getElementById('playBtn').disabled = false;
-    document.getElementById('pauseBtn').disabled = true;
+document.getElementById('playToggle').addEventListener('change', (e) => {
+    if (!sim) return;
+    isPaused = !e.target.checked;
 });
 
 document.getElementById('stepBtn').addEventListener('click', () => {
@@ -307,8 +355,7 @@ document.getElementById('resetBtn').addEventListener('click', () => {
     sim = null;
     SimulationClass = null;
     isPaused = true;
-    document.getElementById('playBtn').disabled = false;
-    document.getElementById('pauseBtn').disabled = true;
+    document.getElementById('playToggle').checked = false;
     ctx.clearRect(0, 0, DISPLAY_SIZE, DISPLAY_SIZE);
     document.getElementById('materialsGrid').innerHTML = '';
     document.getElementById('generation').textContent = '0';

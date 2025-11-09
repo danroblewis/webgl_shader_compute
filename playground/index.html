@@ -26,17 +26,17 @@
         <div class="controls-panel">
             <div class="controls-top">
                 <div class="control-group">
-                    <h3>Compile & Run</h3>
+                    <h3>Simulation</h3>
                     <div class="control-row">
-                        <button class="btn" id="runBtn">▶️ Run</button>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="playToggle">
+                            <span class="toggle-slider"></span>
+                            <span class="toggle-label">Play</span>
+                        </label>
+                        <button class="btn secondary" id="stepBtn">⏭ Step</button>
+                        <button class="btn secondary" id="clearBtn">🗑 Clear</button>
+                        <button class="btn secondary" id="randomizeBtn">🎲 Randomize</button>
                         <button class="btn secondary" id="resetBtn">🔄 Reset</button>
-                    </div>
-                </div>
-
-                <div class="control-group">
-                    <h3>Materials</h3>
-                    <div class="material-grid" id="materialsGrid">
-                        <!-- Populated dynamically -->
                     </div>
                 </div>
 
@@ -52,14 +52,21 @@
                 </div>
 
                 <div class="control-group">
-                    <h3>Simulation</h3>
-                    <div class="control-row">
-                        <button class="btn" id="playBtn">▶️ Play</button>
-                        <button class="btn secondary" id="pauseBtn" disabled>⏸ Pause</button>
-                        <button class="btn secondary" id="stepBtn">⏭ Step</button>
-                        <button class="btn secondary" id="clearBtn">🗑 Clear</button>
-                        <button class="btn secondary" id="randomizeBtn">🎲 Randomize</button>
+                    <h3>Speed</h3>
+                    <div class="slider-group">
+                        <div class="slider-label">
+                            <span>Steps/Frame</span>
+                            <span id="speedValue">1</span>
+                        </div>
+                        <input type="range" id="speedSlider" min="1" max="100" value="1" style="width: 120px;">
                     </div>
+                </div>
+            </div>
+
+            <div class="materials-area">
+                <h3>Materials</h3>
+                <div class="material-grid" id="materialsGrid">
+                    <!-- Populated dynamically -->
                 </div>
             </div>
 
@@ -68,7 +75,7 @@
             <div class="controls-bottom">
                 <div class="stats">
                     <div>Generation: <strong id="generation">0</strong></div>
-                    <div>FPS: <strong id="fps">-</strong></div>
+                    <div>Hz: <strong id="fps">-</strong></div>
                 </div>
             </div>
         </div>
