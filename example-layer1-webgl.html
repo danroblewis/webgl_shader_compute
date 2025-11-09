@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Layer 1 Example: WebGL Interop (Custom Rendering)</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #1a1a1a;
+            color: #fff;
+        }
+        h1 {
+            color: #fff;
+        }
+        .layer-badge {
+            display: inline-block;
+            background: #F44336;
+            color: white;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: bold;
+            margin-left: 10px;
+        }
+        .container {
+            background: #2a2a2a;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.5);
+            margin-bottom: 20px;
+        }
+        canvas {
+            border: 2px solid #444;
+            display: block;
+            margin: 20px auto;
+            background: #000;
+        }
+        .controls {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin: 20px 0;
+        }
+        button {
+            padding: 10px 20px;
+            font-size: 14px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            background: #F44336;
+            color: white;
+            transition: background 0.2s;
+        }
+        button:hover {
+            background: #D32F2F;
+        }
+        .stats {
+            background: #1a1a1a;
+            padding: 15px;
+            border-radius: 4px;
+            margin: 20px 0;
+            border: 1px solid #F44336;
+        }
+        .stats-row {
+            display: grid;
+            grid-template-columns: 180px 1fr;
+            gap: 10px;
+            margin: 8px 0;
+        }
+        .stats-label {
+            font-weight: bold;
+            color: #aaa;
+        }
+        .stats-value {
+            color: #fff;
+            font-family: 'Consolas', monospace;
+        }
+        .code-section {
+            background: #000;
+            color: #abb2bf;
+            padding: 20px;
+            border-radius: 4px;
+            overflow-x: auto;
+            margin: 20px 0;
+            border: 1px solid #444;
+        }
+        .code-section pre {
+            margin: 0;
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 13px;
+            line-height: 1.5;
+        }
+        .highlight {
+            color: #e06c75;
+        }
+        .comment {
+            color: #5c6370;
+            font-style: italic;
+        }
+    </style>
+</head>
+<body>
+    <h1>Custom WebGL Rendering <span class="layer-badge">LAYER 1: GPU Access</span></h1>
+    
+    <div class="container">
+        <p>
+            This example demonstrates <strong>direct WebGL access</strong> (Layer 1).
+            The simulation texture is rendered <strong>directly to the screen</strong> using a custom fragment shader.
+        </p>
+        <p style="color: #F44336;">
+            ⚡ Zero CPU involvement in rendering - pure GPU→GPU pipeline!
+        </p>
+    </div>
+
+    <canvas id="canvas" width="800" height="800"></canvas>
+
+    <div class="container">
+        <div class="controls">
+            <button id="playBtn">Play</button>
+            <button id="pauseBtn">Pause</button>
+            <button id="resetBtn">Reset</button>
+        </div>
+
+        <div class="stats">
+            <div class="stats-row">
+                <div class="stats-label">Generation:</div>
+                <div class="stats-value" id="generation">0</div>
+            </div>
+            <div class="stats-row">
+                <div class="stats-label">FPS:</div>
+                <div class="stats-value" id="fps">-</div>
+            </div>
+            <div class="stats-row">
+                <div class="stats-label">GPU Downloads:</div>
+                <div class="stats-value" id="downloads" style="color: #4CAF50;">0</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="container">
+        <h2>Layer 1 API: WebGL Texture Access</h2>
+        <div class="code-section">
+            <pre><span class="comment">// Get raw WebGL resources</span>
+const texture = sim.<span class="highlight">getTexture</span>();         <span class="comment">// WebGLTexture</span>
+const gl = sim.<span class="highlight">getContext</span>();             <span class="comment">// WebGLRenderingContext</span>
+const compute = sim.<span class="highlight">getComputeEngine</span>();  <span class="comment">// For custom kernels</span>
+
+<span class="comment">// Bind simulation texture directly</span>
+gl.activeTexture(gl.TEXTURE0);
+gl.bindTexture(gl.TEXTURE_2D, texture);
+
+<span class="comment">// Custom fragment shader reads simulation state</span>
+const renderShader = `
+    uniform sampler2D u_simTexture;
+    
+    void main() {
+        float alive = texture2D(u_simTexture, v_texCoord).r;
+        vec3 color = alive > 0.5 
+            ? vec3(0.0, 1.0, 0.5)  <span class="comment">// Alive: cyan</span>
+            : vec3(0.0, 0.0, 0.1); <span class="comment">// Dead: dark blue</span>
+        gl_FragColor = vec4(color, 1.0);
+    }
+`;
+
+<span class="comment">// Render directly: GPU→GPU, no CPU download!</span>
+gl.drawArrays(gl.TRIANGLES, 0, 6);
+</pre>
+        </div>
+        <p>
+            ✅ <strong>Pros:</strong> Maximum performance, custom shaders, GPU→GPU pipeline<br>
+            ⚠️ <strong>Note:</strong> Requires WebGL knowledge
+        </p>
+    </div>
+
+    <script type="module">
+        import { GridSimulation } from './grid-simulation.js';
+
+        const SIZE = 512;
+        const canvas = document.getElementById('canvas');
+        const gl = canvas.getContext('webgl');
+
+        // Create simulation
+        const sim = new GridSimulation({
+            width: SIZE,
+            height: SIZE,
+            rule: 'gameOfLife',
+            initialState: 'random'
+        });
+
+        // Create custom rendering pipeline
+        const renderProgram = createRenderProgram(gl);
+        const quadBuffer = createQuadBuffer(gl);
+
+        let playing = true;
+        let frameCount = 0;
+        let fpsTime = 0;
+        let lastTime = performance.now();
+
+        // Create custom rendering shader
+        function createRenderProgram(gl) {
+            const vertexSource = `
+                attribute vec2 a_position;
+                varying vec2 v_texCoord;
+                
+                void main() {
+                    gl_Position = vec4(a_position, 0.0, 1.0);
+                    v_texCoord = a_position * 0.5 + 0.5;
+                }
+            `;
+            
+            const fragmentSource = `
+                precision highp float;
+                uniform sampler2D u_simTexture;
+                varying vec2 v_texCoord;
+                
+                void main() {
+                    float alive = texture2D(u_simTexture, v_texCoord).r;
+                    
+                    // Custom visualization: cyan/magenta gradient
+                    vec3 color;
+                    if (alive > 0.5) {
+                        color = vec3(0.0, 1.0, 0.8);  // Alive: cyan
+                    } else {
+                        color = vec3(0.05, 0.0, 0.15); // Dead: dark purple
+                    }
+                    
+                    gl_FragColor = vec4(color, 1.0);
+                }
+            `;
+            
+            const vertexShader = gl.createShader(gl.VERTEX_SHADER);
+            gl.shaderSource(vertexShader, vertexSource);
+            gl.compileShader(vertexShader);
+            
+            const fragmentShader = gl.createShader(gl.FRAGMENT_SHADER);
+            gl.shaderSource(fragmentShader, fragmentSource);
+            gl.compileShader(fragmentShader);
+            
+            const program = gl.createProgram();
+            gl.attachShader(program, vertexShader);
+            gl.attachShader(program, fragmentShader);
+            gl.linkProgram(program);
+            
+            return program;
+        }
+
+        function createQuadBuffer(gl) {
+            const buffer = gl.createBuffer();
+            gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
+            const positions = new Float32Array([
+                -1, -1,
+                 1, -1,
+                -1,  1,
+                -1,  1,
+                 1, -1,
+                 1,  1
+            ]);
+            gl.bufferData(gl.ARRAY_BUFFER, positions, gl.STATIC_DRAW);
+            return buffer;
+        }
+
+        // Render using custom WebGL pipeline
+        function render() {
+            // LAYER 1: Get simulation texture (no download!)
+            const simTexture = sim.getTexture();
+            
+            // Set up rendering
+            gl.viewport(0, 0, canvas.width, canvas.height);
+            gl.clearColor(0, 0, 0, 1);
+            gl.clear(gl.COLOR_BUFFER_BIT);
+            
+            gl.useProgram(renderProgram);
+            
+            // Bind simulation texture
+            gl.activeTexture(gl.TEXTURE0);
+            gl.bindTexture(gl.TEXTURE_2D, simTexture);
+            gl.uniform1i(gl.getUniformLocation(renderProgram, 'u_simTexture'), 0);
+            
+            // Set up geometry
+            const positionLocation = gl.getAttribLocation(renderProgram, 'a_position');
+            gl.enableVertexAttribArray(positionLocation);
+            gl.bindBuffer(gl.ARRAY_BUFFER, quadBuffer);
+            gl.vertexAttribPointer(positionLocation, 2, gl.FLOAT, false, 0, 0);
+            
+            // Draw: GPU→GPU, no CPU involvement!
+            gl.drawArrays(gl.TRIANGLES, 0, 6);
+        }
+
+        // Animation loop
+        function animate(currentTime) {
+            if (!playing) {
+                requestAnimationFrame(animate);
+                return;
+            }
+
+            // Run simulation step (pure GPU)
+            sim.step();
+            
+            // Render (GPU→GPU, zero downloads!)
+            render();
+            
+            // Update stats
+            const deltaTime = currentTime - lastTime;
+            frameCount++;
+            fpsTime += deltaTime;
+            
+            if (fpsTime >= 1000) {
+                document.getElementById('fps').textContent = frameCount;
+                document.getElementById('generation').textContent = sim.generation.toLocaleString();
+                frameCount = 0;
+                fpsTime = 0;
+            }
+            
+            lastTime = currentTime;
+            requestAnimationFrame(animate);
+        }
+
+        // Controls
+        document.getElementById('playBtn').addEventListener('click', () => {
+            playing = true;
+        });
+
+        document.getElementById('pauseBtn').addEventListener('click', () => {
+            playing = false;
+        });
+
+        document.getElementById('resetBtn').addEventListener('click', () => {
+            sim.randomize(0.3);
+            sim.generation = 0;
+        });
+
+        // Start animation
+        animate(performance.now());
+    </script>
+</body>
+</html>
+
