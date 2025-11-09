@@ -173,14 +173,14 @@ class GridSimulation {
     }
     
     /**
-     * Randomize grid with given probability (sets R channel to 0 or 1, others to 0)
-     * Subclasses should override this for custom randomization
+     * Randomize grid - randomly selects from this.constructor.CellType
+     * Subclasses can override for custom randomization logic
      */
     randomize() {
         const data = new Float32Array(this.width * this.height * 4);
-        var cellTypes = Object.values(this.constructor.CellType);
+        const cellTypes = Object.values(this.constructor.CellType);
         for (let i = 0; i < this.width * this.height; i++) {
-            const idx = Math.floor(Math.random() % cellTypes.length);
+            const idx = Math.floor(Math.random() * cellTypes.length);
             data.set(cellTypes[idx], i * 4);
         }
         this.compute.upload(this.inputBuffer, data, this.width, this.height);

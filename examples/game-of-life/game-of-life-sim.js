@@ -41,6 +41,21 @@ export class GameOfLifeSimulation extends GridSimulation {
     }
 
     /**
+     * Randomize grid with given probability
+     * @param {number} probability - Probability of cell being alive (0-1)
+     */
+    randomize(probability = 0.5) {
+        const data = new Float32Array(this.width * this.height * 4);
+        const { ALIVE, EMPTY } = this.constructor.CellType;
+        for (let i = 0; i < this.width * this.height; i++) {
+            const cellType = Math.random() < probability ? ALIVE : EMPTY;
+            data.set(cellType, i * 4);
+        }
+        this.compute.upload(this.inputBuffer, data, this.width, this.height);
+        this.bufferDirty = true;
+    }
+
+    /**
      * Count alive cells
      * @returns {number} Number of alive cells
      */
