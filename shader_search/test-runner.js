@@ -1,0 +1,577 @@
+import { GPUCompute } from '../gpu-compute.js';
+import { loadAllTests } from './seq-parser.js';
+
+// Cell type constants
+const CellType = {
+    EMPTY: 0,
+    SAND: 1,
+    STONE: 2
+};
+
+// Test simulation class
+class TestSimulation {
+    constructor(width, height, fragmentShader) {
+        this.width = width;
+        this.height = height;
+        const canvas = document.getElementById('canvas');
+        this.compute = new GPUCompute(canvas);
+        
+        // Create compute kernel from fragment shader
+        this.kernel = this.compute.compileKernel(fragmentShader);
+        
+        // Create ping-pong buffers
+        this.buffer0 = this.compute.createBuffer(width, height);
+        this.buffer1 = this.compute.createBuffer(width, height);
+        this.currentBuffer = 0;
+        
+        // Initialize both buffers with empty data
+        const emptyData = new Float32Array(width * height * 4);
+        this.compute.upload(this.buffer0, emptyData, width, height);
+        this.compute.upload(this.buffer1, emptyData, width, height);
+    }
+    
+    setCell(x, y, value) {
+        const data = new Float32Array([value, 0, 0, 1]);
+        const inputBuffer = this.currentBuffer === 0 ? this.buffer0 : this.buffer1;
+        
+        // Upload to input buffer using the API
+        this.compute.uploadRegion(inputBuffer, data, x, y, 1, 1);
+        
+        // Sync to output buffer by running a copy operation
+        this.syncBuffers();
+    }
+    
+    syncBuffers() {
+        // Copy input to output
+        const inputBuffer = this.currentBuffer === 0 ? this.buffer0 : this.buffer1;
+        const outputBuffer = this.currentBuffer === 0 ? this.buffer1 : this.buffer0;
+        
+        const gl = this.compute.getContext();
+        
+        // Simple pass-through shader to copy
+        const copyShader = `
+            precision highp float;
+            uniform sampler2D u_state;
+            varying vec2 v_texCoord;
+            
+            void main() {
+                gl_FragColor = texture2D(u_state, v_texCoord);
+            }
+        `;
+        
+        if (!this.copyKernel) {
+            this.copyKernel = this.compute.compileKernel(copyShader);
+        }
+        
+        this.compute.run(
+            this.copyKernel,
+            { u_state: inputBuffer },
+            outputBuffer,
+            this.width,
+            this.height
+        );
+        
+        gl.flush();
+    }
+    
+    step() {
+        const inputBuffer = this.currentBuffer === 0 ? this.buffer0 : this.buffer1;
+        const outputBuffer = this.currentBuffer === 0 ? this.buffer1 : this.buffer0;
+        
+        this.compute.run(
+            this.kernel,
+            { u_state: inputBuffer },
+            outputBuffer,
+            this.width,
+            this.height
+        );
+        
+        this.currentBuffer = 1 - this.currentBuffer;
+    }
+    
+    getCell(x, y) {
+        const inputBuffer = this.currentBuffer === 0 ? this.buffer0 : this.buffer1;
+        const data = new Float32Array(this.width * this.height * 4);
+        this.compute.download(inputBuffer, data, this.width, this.height);
+        const idx = (y * this.width + x) * 4;
+        return data[idx];
+    }
+    
+    getGrid() {
+        const inputBuffer = this.currentBuffer === 0 ? this.buffer0 : this.buffer1;
+        const data = new Float32Array(this.width * this.height * 4);
+        this.compute.download(inputBuffer, data, this.width, this.height);
+        
+        // Return grid in reading order (top to bottom)
+        // WebGL texture data is bottom-to-top, so we reverse it
+        const grid = [];
+        for (let y = this.height - 1; y >= 0; y--) {
+            const row = [];
+            for (let x = 0; x < this.width; x++) {
+                const idx = (y * this.width + x) * 4;
+                row.push(data[idx]);
+            }
+            grid.push(row);
+        }
+        return grid;
+    }
+    
+    dispose() {
+        // GPU resources are tracked automatically by GPUCompute
+        // Just dispose the compute context to clean up everything
+        this.compute.dispose();
+    }
+}
+
+// Visualization
+function gridToString(grid) {
+    const symbols = {
+        [CellType.EMPTY]: '·',
+        [CellType.SAND]: 'S',
+        [CellType.STONE]: '#'
+    };
+    
+    // Grid is already in reading order (top to bottom)
+    // Don't reverse - display as-is so floor appears at bottom
+    return grid.map(row =>
+        row.map(cell => symbols[cell] || '?').join('')
+    ).join('\n');
+}
+
+// Helper to load grid into simulation
+function loadGridIntoSim(sim, grid) {
+    // Grid is in reading order (top to bottom), need to convert to y-coordinates
+    for (let y = 0; y < grid.length; y++) {
+        for (let x = 0; x < grid[y].length; x++) {
+            const value = grid[y][x];
+            // Convert reading order to simulation coordinates (flip y)
+            const simY = grid.length - 1 - y;
+            sim.setCell(x, simY, value);
+        }
+    }
+}
+
+// Helper to compare two grids
+function compareGrids(actual, expected) {
+    if (actual.length !== expected.length) {
+        return { match: false, reason: `Height mismatch: ${actual.length} vs ${expected.length}` };
+    }
+    
+    for (let y = 0; y < actual.length; y++) {
+        if (actual[y].length !== expected[y].length) {
+            return { match: false, reason: `Width mismatch at row ${y}: ${actual[y].length} vs ${expected[y].length}` };
+        }
+        
+        for (let x = 0; x < actual[y].length; x++) {
+            if (actual[y][x] !== expected[y][x]) {
+                // Convert to reading coordinates for error message
+                const readingY = actual.length - 1 - y;
+                return {
+                    match: false,
+                    reason: `Cell mismatch at (${x}, ${readingY}): expected ${expected[y][x]}, got ${actual[y][x]}`
+                };
+            }
+        }
+    }
+    
+    return { match: true };
+}
+
+// Test framework
+class TestRunner {
+    constructor() {
+        this.tests = [];
+        this.results = [];
+        this.testDetails = []; // Store detailed results for each test
+        this.currentVisualization = null;
+        this.animationState = {
+            frames: [],
+            currentFrame: 0,
+            isPlaying: false,
+            intervalId: null,
+            speed: 500 // ms per frame
+        };
+    }
+    
+    test(name, description, fn) {
+        this.tests.push({ name, description, fn });
+    }
+    
+    async runAll(fastMode = true) {
+        this.results = [];
+        this.testDetails = [];
+        const testListEl = document.getElementById('testList');
+        testListEl.innerHTML = '';
+        
+        // Create test item elements
+        const testElements = this.tests.map((test, idx) => {
+            const el = document.createElement('div');
+            el.className = 'test-item';
+            el.innerHTML = `
+                <div class="test-name">${idx + 1}. ${test.name}</div>
+                <div class="test-description" style="font-size: 12px; color: #858585;">${test.description}</div>
+            `;
+            testListEl.appendChild(el);
+            return el;
+        });
+        
+        // Run tests
+        for (let i = 0; i < this.tests.length; i++) {
+            const test = this.tests[i];
+            const el = testElements[i];
+            
+            el.className = 'test-item running';
+            
+            const details = {
+                name: test.name,
+                frames: [],
+                testIndex: i
+            };
+            
+            try {
+                if (fastMode) {
+                    // Fast mode: no visualization, no intermediate checks
+                    await test.fn(null); // null callback = skip visualization
+                } else {
+                    // Slow mode: capture all frames for debugging
+                    await test.fn((msg, grid) => {
+                        this.visualize(msg, grid);
+                        details.frames.push({ msg, grid: JSON.parse(JSON.stringify(grid)) });
+                    });
+                }
+                
+                el.className = 'test-item passed';
+                this.results.push({ name: test.name, passed: true });
+                details.passed = true;
+            } catch (error) {
+                el.className = 'test-item failed';
+                const errorEl = document.createElement('div');
+                errorEl.className = 'test-error';
+                errorEl.textContent = error.message;
+                el.appendChild(errorEl);
+                this.results.push({ name: test.name, passed: false, error: error.message });
+                details.passed = false;
+                details.error = error.message;
+            }
+            
+            this.testDetails.push(details);
+            
+            // Add click handler to re-run test in detailed mode
+            el.addEventListener('click', async () => {
+                await this.runSingleTestDetailed(i);
+            });
+        }
+        
+        this.showSummary();
+    }
+    
+    async runSingleTestDetailed(testIndex) {
+        const test = this.tests[testIndex];
+        
+        document.getElementById('stepInfo').textContent = `Re-running: ${test.name}...`;
+        document.getElementById('gridDisplay').textContent = 'Running detailed test...';
+        
+        const details = {
+            name: test.name,
+            frames: [],
+            actualFrames: [],
+            expectedFrames: []
+        };
+        
+        try {
+            // Re-run test with full visualization
+            await test.fn((msg, grid, expected) => {
+                details.frames.push({ msg, grid: JSON.parse(JSON.stringify(grid)) });
+                if (expected) {
+                    details.expectedFrames.push({ msg, expected: JSON.parse(JSON.stringify(expected)) });
+                }
+            });
+            details.passed = true;
+        } catch (error) {
+            details.passed = false;
+            details.error = error.message;
+        }
+        
+        // Display detailed results
+        this.showDetailedTestResults(details);
+    }
+    
+    visualize(stepInfo, grid) {
+        document.getElementById('stepInfo').textContent = stepInfo;
+        document.getElementById('gridDisplay').textContent = gridToString(grid);
+    }
+    
+    showTestDetails(testIndex) {
+        // This is now handled by runSingleTestDetailed
+        this.runSingleTestDetailed(testIndex);
+    }
+    
+    showDetailedTestResults(details) {
+        // Stop any existing animation
+        this.stopAnimation();
+        
+        // Prepare frames for animation
+        this.animationState.frames = details.frames.map((frame, idx) => ({
+            msg: frame.msg,
+            actual: frame.grid,
+            expected: details.expectedFrames[idx]?.expected || null
+        }));
+        
+        this.animationState.currentFrame = 0;
+        this.animationState.testName = details.name;
+        this.animationState.testStatus = details.passed ? '✅ PASSED' : `❌ FAILED`;
+        this.animationState.testError = details.error || '';
+        
+        // Setup controls - animation controls at top
+        document.getElementById('stepInfo').innerHTML = `
+            <div style="display: flex; gap: 10px; align-items: center; margin-bottom: 10px;">
+                <button id="animPlayPause" style="padding: 5px 15px;">▶️ Play</button>
+                <button id="animPrev" style="padding: 5px 10px;">⏮</button>
+                <button id="animNext" style="padding: 5px 10px;">⏭</button>
+                <span id="animFrameInfo" style="color: #858585;"></span>
+                <label style="margin-left: auto; color: #858585;">
+                    Speed: 
+                    <select id="animSpeed" style="background: #2d2d30; color: #d4d4d4; border: 1px solid #3e3e42; padding: 2px;">
+                        <option value="5000">Slow</option>
+                        <option value="250" selected>Normal</option>
+                        <option value="100">Fast</option>
+                        <option value="50">Very Fast</option>
+                    </select>
+                </label>
+            </div>
+        `;
+        
+        // Create status area after gridDisplay if it doesn't exist
+        let statusDiv = document.getElementById('animStatusInfo');
+        if (!statusDiv) {
+            statusDiv = document.createElement('div');
+            statusDiv.id = 'animStatusInfo';
+            statusDiv.style.marginTop = '15px';
+            statusDiv.style.paddingTop = '15px';
+            statusDiv.style.borderTop = '1px solid #3e3e42';
+            document.getElementById('gridDisplay').parentElement.appendChild(statusDiv);
+        }
+        
+        // Setup event listeners
+        document.getElementById('animPlayPause').addEventListener('click', () => this.toggleAnimation());
+        document.getElementById('animPrev').addEventListener('click', () => this.prevFrame());
+        document.getElementById('animNext').addEventListener('click', () => this.nextFrame());
+        document.getElementById('animSpeed').addEventListener('change', (e) => {
+            this.animationState.speed = parseInt(e.target.value);
+            if (this.animationState.isPlaying) {
+                this.stopAnimation();
+                this.startAnimation();
+            }
+        });
+        
+        // Show first frame (will include status at bottom)
+        this.renderCurrentFrame();
+        
+        // Auto-play
+        this.startAnimation();
+        document.getElementById('animPlayPause').textContent = '⏸️ Pause';
+    }
+    
+    renderCurrentFrame() {
+        const frame = this.animationState.frames[this.animationState.currentFrame];
+        if (!frame) return;
+        
+        let output = `${frame.msg}\n\n`;
+        
+        if (frame.expected) {
+            // Show actual and expected side-by-side
+            const actualLines = gridToString(frame.actual).split('\n');
+            const expectedLines = gridToString(frame.expected).split('\n');
+            
+            output += `    Actual:          Expected:\n`;
+            for (let i = 0; i < Math.max(actualLines.length, expectedLines.length); i++) {
+                const actualLine = actualLines[i] || '';
+                const expectedLine = expectedLines[i] || '';
+                output += `    ${actualLine.padEnd(15)}  ${expectedLine}\n`;
+            }
+        } else {
+            output += gridToString(frame.actual);
+        }
+        
+        document.getElementById('gridDisplay').textContent = output;
+        document.getElementById('animFrameInfo').textContent = 
+            `Frame ${this.animationState.currentFrame + 1} / ${this.animationState.frames.length}`;
+        
+        // Update status in separate area
+        const statusDiv = document.getElementById('animStatusInfo');
+        if (statusDiv) {
+            let statusText = `${this.animationState.testStatus} ${this.animationState.testName}`;
+            if (this.animationState.testError) {
+                statusText += `\n${this.animationState.testError}`;
+            }
+            statusDiv.textContent = statusText;
+        }
+    }
+    
+    toggleAnimation() {
+        if (this.animationState.isPlaying) {
+            this.stopAnimation();
+            document.getElementById('animPlayPause').textContent = '▶️ Play';
+        } else {
+            this.startAnimation();
+            document.getElementById('animPlayPause').textContent = '⏸️ Pause';
+        }
+    }
+    
+    startAnimation() {
+        this.animationState.isPlaying = true;
+        this.animationState.intervalId = setInterval(() => {
+            if (this.animationState.currentFrame < this.animationState.frames.length - 1) {
+                this.nextFrame();
+            } else {
+                // Loop back to start
+                this.animationState.currentFrame = 0;
+                this.renderCurrentFrame();
+            }
+        }, this.animationState.speed);
+    }
+    
+    stopAnimation() {
+        this.animationState.isPlaying = false;
+        if (this.animationState.intervalId) {
+            clearInterval(this.animationState.intervalId);
+            this.animationState.intervalId = null;
+        }
+    }
+    
+    nextFrame() {
+        if (this.animationState.currentFrame < this.animationState.frames.length - 1) {
+            this.animationState.currentFrame++;
+            this.renderCurrentFrame();
+        }
+    }
+    
+    prevFrame() {
+        if (this.animationState.currentFrame > 0) {
+            this.animationState.currentFrame--;
+            this.renderCurrentFrame();
+        }
+    }
+    
+    showSummary() {
+        const passed = this.results.filter(r => r.passed).length;
+        const failed = this.results.filter(r => !r.passed).length;
+        
+        const summaryEl = document.getElementById('summary');
+        const summaryTextEl = document.getElementById('summaryText');
+        
+        summaryEl.style.display = 'block';
+        summaryTextEl.textContent = `${passed} passed, ${failed} failed`;
+        
+        if (failed === 0) {
+            summaryEl.className = 'summary all-passed';
+        } else {
+            summaryEl.className = 'summary has-failures';
+        }
+    }
+    
+    clear() {
+        this.results = [];
+        this.testDetails = [];
+        document.getElementById('testList').innerHTML = '';
+        document.getElementById('summary').style.display = 'none';
+        document.getElementById('gridDisplay').textContent = '';
+        document.getElementById('stepInfo').textContent = '';
+    }
+}
+
+// Load shader
+async function loadShader(path) {
+    const response = await fetch(path);
+    return await response.text();
+}
+
+// Main
+(async () => {
+    const runner = new TestRunner();
+    
+    // Load the GLSL shader
+    const shaderSource = await loadShader('basic-sim.glsl');
+    
+    // Load all test sequences
+    console.log('📂 Loading test cases from .seq files...');
+    const testCases = await loadAllTests();
+    console.log(`✅ Loaded ${testCases.length} test cases`);
+    
+    // Create tests from sequences
+    for (const testCase of testCases) {
+        const { name, filename, sequence } = testCase;
+        const { width, height, frames } = sequence;
+        
+        const description = `${frames.length} frame sequence (${width}×${height})`;
+        
+        runner.test(name, description, async (visualize) => {
+            const sim = new TestSimulation(width, height, shaderSource);
+            
+            // Load initial state (frame 0)
+            loadGridIntoSim(sim, frames[0]);
+            
+            if (visualize) {
+                // Detailed mode: check every frame
+                visualize(`Frame 0:`, sim.getGrid(), frames[0]);
+                
+                // Verify initial state matches
+                const initialGrid = sim.getGrid();
+                const initialCheck = compareGrids(initialGrid, frames[0]);
+                if (!initialCheck.match) {
+                    sim.dispose();
+                    throw new Error(`Initial state mismatch: ${initialCheck.reason}`);
+                }
+                
+                // Run simulation and check each frame
+                for (let i = 1; i < frames.length; i++) {
+                    sim.step();
+                    
+                    const actualGrid = sim.getGrid();
+                    visualize(`Frame ${i}:`, actualGrid, frames[i]);
+                    
+                    const check = compareGrids(actualGrid, frames[i]);
+                    if (!check.match) {
+                        sim.dispose();
+                        throw new Error(`Frame ${i}: ${check.reason}`);
+                    }
+                }
+            } else {
+                // Fast mode: run all steps, check only final frame
+                const numSteps = frames.length - 1;
+                
+                for (let i = 0; i < numSteps; i++) {
+                    sim.step();
+                }
+                
+                // Only download grid once at the end
+                const finalGrid = sim.getGrid();
+                const finalFrame = frames[frames.length - 1];
+                const check = compareGrids(finalGrid, finalFrame);
+                
+                if (!check.match) {
+                    sim.dispose();
+                    throw new Error(`Final frame (${frames.length - 1}): ${check.reason}`);
+                }
+            }
+            
+            sim.dispose();
+        });
+    }
+    
+    // Setup UI
+    document.getElementById('runAllBtn').addEventListener('click', () => {
+        runner.runAll();
+    });
+    
+    document.getElementById('clearBtn').addEventListener('click', () => {
+        runner.clear();
+    });
+    
+    console.log('✅ Test runner initialized');
+    console.log('📊 Loaded', runner.tests.length, 'tests');
+    
+    // Auto-run tests on load
+    runner.runAll();
+})();
+
