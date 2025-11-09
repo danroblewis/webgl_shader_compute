@@ -34,7 +34,9 @@ export class FallingSandSimulation extends GridSimulation {
      * @returns {Promise<FallingSandSimulation>} The simulation instance
      */
     static async create(width, height, options = {}) {
-        const shaderSource = await fetch('./falling-sand.glsl').then(r => r.text());
+        // Use import.meta.url to get path relative to this module
+        const shaderUrl = new URL('./falling-sand.glsl', import.meta.url);
+        const shaderSource = await fetch(shaderUrl).then(r => r.text());
         return new FallingSandSimulation(width, height, shaderSource, options);
     }
     

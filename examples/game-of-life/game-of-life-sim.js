@@ -16,7 +16,9 @@ export class GameOfLifeSimulation extends GridSimulation {
      * @returns {Promise<GameOfLifeSimulation>} The simulation instance
      */
     static async create(width, height, options = {}) {
-        const shaderSource = await fetch('./game-of-life.glsl').then(r => r.text());
+        // Use import.meta.url to get path relative to this module
+        const shaderUrl = new URL('./game-of-life.glsl', import.meta.url);
+        const shaderSource = await fetch(shaderUrl).then(r => r.text());
         return new GameOfLifeSimulation(width, height, shaderSource, options);
     }
     
