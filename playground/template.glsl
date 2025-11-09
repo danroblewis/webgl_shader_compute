@@ -1,8 +1,15 @@
 precision highp float;
+
 uniform sampler2D u_state;
 uniform float u_width;
 uniform float u_height;
+
 varying vec2 v_texCoord;
+
+vec4 getCell(vec2 offset) {
+    vec2 pixelSize = vec2(1.0) / vec2(u_width, u_height);
+    return texture2D(u_state, v_texCoord + offset * pixelSize);
+}
 
 void main() {
     float cellWidth = 1.0 / u_width;
@@ -38,4 +45,3 @@ void main() {
     
     gl_FragColor = vec4(alive, 0.0, 0.0, 1.0);
 }
-
