@@ -35,39 +35,22 @@ export class GameOfLifeSimulation extends GridSimulation {
             width,
             height,
             rule: shaderSource,
-            cellTypes: GameOfLifeSimulation.CellType,  // Pass cell types to base class for reverse lookup
             initialState: options.initialState || 'empty',
             canvas: options.canvas
         });
     }
-    
-    // ============================================
-    // No overrides needed - CellType values are already RGBA!
-    // Users access via: GameOfLifeSimulation.CellType.ALIVE
-    // Example: sim.setCell(x, y, GameOfLifeSimulation.CellType.ALIVE)
-    // Base class handles everything.
-    // ============================================
-    
-    /**
-     * Randomize grid with given probability
-     * @param {number} probability - Probability of cell being alive (0-1)
-     */
-    randomize(probability = 0.5) {
-        const buffer = this.getCurrentBuffer();
-        const { ALIVE, EMPTY } = this.constructor.CellType;
-        for (let i = 0; i < this.width * this.height; i++) {
-            const cellType = Math.random() < probability ? ALIVE : EMPTY;
-            buffer.set(cellType, i * 4);
-        }
-        this.syncBuffer(buffer);
-    }
-    
+
     /**
      * Count alive cells
      * @returns {number} Number of alive cells
      */
     countAlive() {
-        return this.countWhere(cell => cell[0] > 0.5);
+        const buffer = this.getCurrentBuffer();
+        let count = 0;
+        for (let i = 0; i < buffer.length; i++) {
+            if (buffer[i] > 0.5) count++;
+        }
+        return count;
     }
     
     // ============================================

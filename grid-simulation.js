@@ -13,6 +13,10 @@
 import { GPUCompute } from './gpu-compute.js';
 
 class GridSimulation {
+    static CellType = {
+        EMPTY: new Float32Array([0, 0, 0, 0])
+    }
+
     constructor(config) {
         this.width = config.width;
         this.height = config.height;
@@ -40,13 +44,6 @@ class GridSimulation {
         // Layer 2: Buffer cache (RGBA format: 4 floats per cell)
         this.cachedBuffer = null;
         this.bufferDirty = true;
-        
-        // Optional: Cell type enum and reverse lookup (for subclasses)
-        this.cellTypes = config.cellTypes || null;
-        this.rgbaToType = null;
-        if (this.cellTypes) {
-            this.#buildReverseLookup();
-        }
         
         // Initialize state
         if (config.initialState === 'random') {
@@ -178,15 +175,13 @@ class GridSimulation {
     /**
      * Randomize grid with given probability (sets R channel to 0 or 1, others to 0)
      * Subclasses should override this for custom randomization
-     * @param {number} probability - Probability of cell being alive (0-1)
      */
-    randomize(probability = 0.5) {
+    randomize() {
         const data = new Float32Array(this.width * this.height * 4);
+        var cellTypes = Object.values(this.constructor.CellType);
         for (let i = 0; i < this.width * this.height; i++) {
-            data[i * 4] = Math.random() < probability ? 1.0 : 0.0;  // R
-            data[i * 4 + 1] = 0.0;  // G
-            data[i * 4 + 2] = 0.0;  // B
-            data[i * 4 + 3] = 0.0;  // A
+            const idx = Math.floor(Math.random() % cellTypes.length);
+            data.set(cellTypes[idx], i * 4);
         }
         this.compute.upload(this.inputBuffer, data, this.width, this.height);
         this.bufferDirty = true;
@@ -237,36 +232,6 @@ class GridSimulation {
         this.clear();
     }
     
-    /**
-     * Count cells matching a predicate
-     * Note: Triggers GPU download
-     * @param {Function} predicate - Function to test each cell (receives [r,g,b,a])
-     * @returns {number} Count of matching cells
-     */
-    countWhere(predicate) {
-        const buffer = this.getCurrentBuffer();
-        let count = 0;
-        for (let i = 0; i < this.width * this.height; i++) {
-            const cell = [
-                buffer[i * 4],
-                buffer[i * 4 + 1],
-                buffer[i * 4 + 2],
-                buffer[i * 4 + 3]
-            ];
-            if (predicate(cell)) count++;
-        }
-        return count;
-    }
-    
-    /**
-     * Count "alive" cells (R channel > 0.5)
-     * Subclasses should override this for custom "alive" definitions
-     * @returns {number} Number of alive cells
-     */
-    countAlive() {
-        return this.countWhere(cell => cell[0] > 0.5);
-    }
-    
     // ============================================
     // LAYER 2: Direct Buffer Access
     // ============================================
@@ -311,14 +276,6 @@ class GridSimulation {
     }
     
     /**
-     * Check if buffer cache is stale (needs download)
-     * @returns {boolean} True if buffer needs download
-     */
-    isBufferStale() {
-        return this.bufferDirty;
-    }
-    
-    /**
      * Invalidate buffer cache (force next access to re-download)
      */
     invalidateBufferCache() {
@@ -348,31 +305,7 @@ class GridSimulation {
             output: this.outputBuffer
         };
     }
-    
-    /**
-     * Get WebGL rendering context
-     * @returns {WebGLRenderingContext} WebGL context
-     */
-    getContext() {
-        return this.compute.getContext();
-    }
-    
-    /**
-     * Get compiled kernel program
-     * @returns {WebGLProgram} Kernel program
-     */
-    getProgram() {
-        return this.kernel;
-    }
-    
-    /**
-     * Get underlying compute engine
-     * @returns {GPUCompute} Compute engine
-     */
-    getComputeEngine() {
-        return this.compute;
-    }
-    
+
     /**
      * Clean up GPU resources
      */
@@ -392,36 +325,6 @@ class GridSimulation {
         
         this.compute.download(this.inputBuffer, this.cachedBuffer, this.width, this.height);
         this.bufferDirty = false;
-    }
-    
-    /**
-     * Build reverse lookup map from RGBA values to cell types
-     * Creates a Map that can convert RGBA vec4 back to cell type enum
-     */
-    #buildReverseLookup() {
-        this.rgbaToType = new Map();
-        
-        for (const [name, rgba] of Object.entries(this.cellTypes)) {
-            // Create a key from RGBA values (use R channel for simple lookups)
-            // For more complex cell types, could hash all 4 channels
-            const key = rgba[0];
-            this.rgbaToType.set(key, rgba);
-        }
-    }
-    
-    /**
-     * Convert RGBA to cell type using reverse lookup
-     * @param {Array<number>|Float32Array} rgba - RGBA vec4
-     * @returns {Float32Array|null} Cell type, or null if no cellTypes defined
-     */
-    rgbaToCellType(rgba) {
-        if (!this.rgbaToType) {
-            return null;  // No cell types defined
-        }
-        
-        // Quantize R channel to integer for lookup
-        const key = Math.round(rgba[0]);
-        return this.rgbaToType.get(key) || this.cellTypes[Object.keys(this.cellTypes)[0]];
     }
 }
 
