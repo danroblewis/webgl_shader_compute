@@ -7,17 +7,14 @@
 
 import { GridSimulation } from '../../grid-simulation.js';
 
-// Cell type enumeration - stores RGBA vec4 values directly
-const CellType = {
-    EMPTY: new Float32Array([0, 0, 0, 0]),
-    ALIVE: new Float32Array([1, 0, 0, 0])
-};
-
 export class GameOfLifeSimulation extends GridSimulation {
     /**
-     * Cell types for Game of Life
+     * Cell types for Game of Life - stores RGBA vec4 values directly
      */
-    static CellType = CellType;
+    static CellType = {
+        EMPTY: new Float32Array([0, 0, 0, 0]),
+        ALIVE: new Float32Array([1, 0, 0, 0])
+    };
     
     /**
      * Create a new Game of Life simulation
@@ -38,7 +35,7 @@ export class GameOfLifeSimulation extends GridSimulation {
             width,
             height,
             rule: shaderSource,
-            cellTypes: CellType,  // Pass cell types to base class for reverse lookup
+            cellTypes: GameOfLifeSimulation.CellType,  // Pass cell types to base class for reverse lookup
             initialState: options.initialState || 'empty',
             canvas: options.canvas
         });
@@ -165,6 +162,7 @@ export class GameOfLifeSimulation extends GridSimulation {
      */
     toggleCell(x, y) {
         const current = this.getCellState(x, y);
+        const CellType = GameOfLifeSimulation.CellType;
         this.setCell(x, y, current[0] > 0.5 ? CellType.EMPTY : CellType.ALIVE);
     }
 }
