@@ -1,4 +1,4 @@
-import { GPUCompute } from '../gpu-compute.js';
+import { GridSimulation } from '../grid-simulation.js';
 import { loadAllTests } from './seq-parser.js';
 
 // Cell type constants
@@ -8,99 +8,33 @@ const CellType = {
     STONE: 2
 };
 
-// Test simulation class
-class TestSimulation {
+// Test simulation class - extends GridSimulation with single-value cell API
+class TestSimulation extends GridSimulation {
     constructor(width, height, fragmentShader) {
-        this.width = width;
-        this.height = height;
-        const canvas = document.getElementById('canvas');
-        this.compute = new GPUCompute(canvas);
-        
-        // Create compute kernel from fragment shader
-        this.kernel = this.compute.compileKernel(fragmentShader);
-        
-        // Create ping-pong buffers
-        this.buffer0 = this.compute.createBuffer(width, height);
-        this.buffer1 = this.compute.createBuffer(width, height);
-        this.currentBuffer = 0;
-        
-        // Initialize both buffers with empty data
-        const emptyData = new Float32Array(width * height * 4);
-        this.compute.upload(this.buffer0, emptyData, width, height);
-        this.compute.upload(this.buffer1, emptyData, width, height);
+        super({
+            width,
+            height,
+            canvas: document.getElementById('canvas'),
+            rule: fragmentShader,
+            initialState: new Float32Array(width * height * 4) // Empty
+        });
     }
     
+    // Override setCell to accept single value instead of RGBA array
     setCell(x, y, value) {
-        const data = new Float32Array([value, 0, 0, 1]);
-        const inputBuffer = this.currentBuffer === 0 ? this.buffer0 : this.buffer1;
-        
-        // Upload to input buffer using the API
-        this.compute.uploadRegion(inputBuffer, data, x, y, 1, 1);
-        
-        // Sync to output buffer by running a copy operation
-        this.syncBuffers();
+        // Convert single value to RGBA array
+        super.setCell(x, y, [value, 0, 0, 1]);
     }
     
-    syncBuffers() {
-        // Copy input to output
-        const inputBuffer = this.currentBuffer === 0 ? this.buffer0 : this.buffer1;
-        const outputBuffer = this.currentBuffer === 0 ? this.buffer1 : this.buffer0;
-        
-        const gl = this.compute.getContext();
-        
-        // Simple pass-through shader to copy
-        const copyShader = `
-            precision highp float;
-            uniform sampler2D u_state;
-            varying vec2 v_texCoord;
-            
-            void main() {
-                gl_FragColor = texture2D(u_state, v_texCoord);
-            }
-        `;
-        
-        if (!this.copyKernel) {
-            this.copyKernel = this.compute.compileKernel(copyShader);
-        }
-        
-        this.compute.run(
-            this.copyKernel,
-            { u_state: inputBuffer },
-            outputBuffer,
-            this.width,
-            this.height
-        );
-        
-        gl.flush();
-    }
-    
-    step() {
-        const inputBuffer = this.currentBuffer === 0 ? this.buffer0 : this.buffer1;
-        const outputBuffer = this.currentBuffer === 0 ? this.buffer1 : this.buffer0;
-        
-        this.compute.run(
-            this.kernel,
-            { u_state: inputBuffer },
-            outputBuffer,
-            this.width,
-            this.height
-        );
-        
-        this.currentBuffer = 1 - this.currentBuffer;
-    }
-    
+    // Add getCell method that returns single value
     getCell(x, y) {
-        const inputBuffer = this.currentBuffer === 0 ? this.buffer0 : this.buffer1;
-        const data = new Float32Array(this.width * this.height * 4);
-        this.compute.download(inputBuffer, data, this.width, this.height);
-        const idx = (y * this.width + x) * 4;
-        return data[idx];
+        const rgba = this.getCellState(x, y);
+        return rgba[0]; // Return just the R component
     }
     
+    // Get entire grid as 2D array of single values
     getGrid() {
-        const inputBuffer = this.currentBuffer === 0 ? this.buffer0 : this.buffer1;
-        const data = new Float32Array(this.width * this.height * 4);
-        this.compute.download(inputBuffer, data, this.width, this.height);
+        const buffer = this.getCurrentBuffer();
         
         // Return grid in reading order (top to bottom)
         // WebGL texture data is bottom-to-top, so we reverse it
@@ -109,17 +43,11 @@ class TestSimulation {
             const row = [];
             for (let x = 0; x < this.width; x++) {
                 const idx = (y * this.width + x) * 4;
-                row.push(data[idx]);
+                row.push(buffer[idx]); // Just the R component
             }
             grid.push(row);
         }
         return grid;
-    }
-    
-    dispose() {
-        // GPU resources are tracked automatically by GPUCompute
-        // Just dispose the compute context to clean up everything
-        this.compute.dispose();
     }
 }
 
@@ -531,7 +459,7 @@ async function loadShader(path) {
             
             if (visualize) {
                 // Detailed mode: check every frame
-                visualize(`Frame 0:`, sim.getGrid(), frames[0]);
+                visualize(`Frame 1:`, sim.getGrid(), frames[0]);
                 
                 // Verify initial state matches
                 const initialGrid = sim.getGrid();
@@ -547,11 +475,11 @@ async function loadShader(path) {
                     sim.step();
                     
                     const actualGrid = sim.getGrid();
-                    visualize(`Frame ${i}:`, actualGrid, frames[i]);
+                    visualize(`Frame ${i+1}:`, actualGrid, frames[i]);
                     
                     const check = compareGrids(actualGrid, frames[i]);
                     if (!check.match) {
-                        errors.push(`Frame ${i}: ${check.reason}`);
+                        errors.push(`Frame ${i+1}: ${check.reason}`);
                     }
                 }
                 
