@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Layer 2: Performance Demo</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        h1 {
+            color: #333;
+        }
+        .badge {
+            display: inline-block;
+            background: #ff9800;
+            color: white;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: bold;
+            margin-left: 10px;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        canvas {
+            border: 1px solid #ddd;
+            display: block;
+            margin: 20px auto;
+        }
+        .controls {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin: 20px 0;
+        }
+        button {
+            padding: 10px 20px;
+            font-size: 14px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            background: #2196F3;
+            color: white;
+            transition: background 0.2s;
+        }
+        button:hover {
+            background: #1976D2;
+        }
+        .stats {
+            background: #f9f9f9;
+            padding: 15px;
+            border-radius: 4px;
+            margin: 20px 0;
+        }
+        .stats-row {
+            display: grid;
+            grid-template-columns: 200px 1fr;
+            gap: 10px;
+            margin: 8px 0;
+        }
+        .stats-label {
+            font-weight: bold;
+            color: #666;
+        }
+        .stats-value {
+            color: #333;
+        }
+        .warning {
+            color: #ff9800;
+            font-weight: bold;
+        }
+        .success {
+            color: #4CAF50;
+            font-weight: bold;
+        }
+        pre {
+            background: #2d2d2d;
+            color: #f8f8f2;
+            padding: 15px;
+            border-radius: 4px;
+            overflow-x: auto;
+        }
+        code {
+            font-family: 'Consolas', 'Monaco', monospace;
+        }
+    </style>
+</head>
+<body>
+    <h1>
+        Layer 2: Direct Buffer Access
+        <span class="badge">PERFORMANCE</span>
+    </h1>
+    
+    <div class="container">
+        <p>
+            This example demonstrates <strong>Layer 2 API</strong>: direct buffer access for performance-critical operations.
+            Instead of downloading GPU data on every cell query, we get a reference to the entire buffer once.
+        </p>
+    </div>
+
+    <canvas id="canvas" width="1024" height="1024"></canvas>
+
+    <div class="container">
+        <div class="controls">
+            <button id="runBtn">Run Simulation</button>
+        </div>
+
+        <div class="stats">
+            <div class="stats-row">
+                <div class="stats-label">Buffer Downloads:</div>
+                <div class="stats-value success" id="downloads">0</div>
+            </div>
+            <div class="stats-row">
+                <div class="stats-label">Simulation Steps:</div>
+                <div class="stats-value" id="steps">0</div>
+            </div>
+            <div class="stats-row">
+                <div class="stats-label">FPS:</div>
+                <div class="stats-value" id="fps">-</div>
+            </div>
+        </div>
+
+        <h2>Layer 2 API Demo</h2>
+        <pre><code>// Get buffer reference once (minimal GPU downloads)
+const buffer = sim.getBuffer();
+
+// Direct memory access - no GPU overhead!
+const topLeft = buffer[0];
+const topRight = buffer[sim.width - 1];
+const center = buffer[sim.width * sim.height / 2];
+
+// Modify and sync back
+buffer[y * sim.width + x] = 1.0;
+sim.syncBuffer(buffer);</code></pre>
+
+        <p>
+            ✅ <strong>Pros:</strong> Extremely fast for batch operations<br>
+            ⚠️ <strong>Cons:</strong> Manual buffer management, requires understanding of data layout
+        </p>
+    </div>
+
+    <script type="module">
+        import { GameOfLifeSimulation } from '../game-of-life/game-of-life-sim.js';
+
+        const SIZE = 256;
+        const CELL_SIZE = 4;
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+
+        // Create simulation
+        const sim = new GameOfLifeSimulation(SIZE, SIZE, { initialState: 'random' });
+
+        let downloadCount = 0;
+        let stepCount = 0;
+        let frameCount = 0;
+        let fpsTime = 0;
+
+        // Efficient render using buffer reference
+        function render() {
+            // Get buffer once - this is the only download!
+            const buffer = sim.getBuffer();
+            downloadCount++;
+            
+            const imageData = ctx.createImageData(SIZE, SIZE);
+            for (let i = 0; i < buffer.length; i++) {
+                const alive = buffer[i] > 0.5;
+                const baseIdx = i * 4;
+                imageData.data[baseIdx] = alive ? 255 : 0;
+                imageData.data[baseIdx + 1] = alive ? 255 : 0;
+                imageData.data[baseIdx + 2] = alive ? 255 : 0;
+                imageData.data[baseIdx + 3] = 255;
+            }
+            
+            ctx.putImageData(imageData, 0, 0);
+            ctx.drawImage(canvas, 0, 0, SIZE, SIZE, 0, 0, canvas.width, canvas.height);
+        }
+
+        function updateStats() {
+            document.getElementById('downloads').textContent = downloadCount;
+            document.getElementById('steps').textContent = stepCount;
+        }
+
+        let animationId = null;
+        let lastTime = 0;
+
+        function animate(currentTime) {
+            const deltaTime = currentTime - lastTime;
+            
+            if (deltaTime >= 1000 / 60) {  // 60 FPS target
+                sim.step();
+                stepCount++;
+                render();
+                updateStats();
+                
+                lastTime = currentTime;
+                frameCount++;
+            }
+
+            fpsTime += deltaTime;
+            if (fpsTime >= 1000) {
+                document.getElementById('fps').textContent = frameCount;
+                frameCount = 0;
+                fpsTime = 0;
+            }
+
+            if (stepCount < 500) {  // Run for 500 steps
+                animationId = requestAnimationFrame(animate);
+            }
+        }
+
+        document.getElementById('runBtn').addEventListener('click', () => {
+            // Reset stats
+            downloadCount = 0;
+            stepCount = 0;
+            frameCount = 0;
+            fpsTime = 0;
+            
+            // Reset simulation
+            sim.randomize(0.3);
+            render();
+            updateStats();
+            
+            // Start animation
+            lastTime = performance.now();
+            if (animationId) cancelAnimationFrame(animationId);
+            animationId = requestAnimationFrame(animate);
+        });
+
+        // Initial render
+        render();
+        updateStats();
+    </script>
+</body>
+</html>
+

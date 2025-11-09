@@ -9,83 +9,6 @@
 
 import { GPUCompute } from './gpu-compute.js';
 
-// Built-in rules
-const RULES = {
-    gameOfLife: `
-        precision highp float;
-        uniform sampler2D u_state;
-        uniform float u_width;
-        uniform float u_height;
-        varying vec2 v_texCoord;
-        
-        void main() {
-            float cellWidth = 1.0 / u_width;
-            float cellHeight = 1.0 / u_height;
-            
-            // Count neighbors
-            int neighbors = 0;
-            for (int y = -1; y <= 1; y++) {
-                for (int x = -1; x <= 1; x++) {
-                    if (x == 0 && y == 0) continue;
-                    
-                    vec2 offset = vec2(float(x) * cellWidth, float(y) * cellHeight);
-                    vec2 coord = v_texCoord + offset;
-                    
-                    // Wrap coordinates (toroidal topology)
-                    coord = fract(coord);
-                    
-                    float cell = texture2D(u_state, coord).r;
-                    if (cell > 0.5) neighbors++;
-                }
-            }
-            
-            float current = texture2D(u_state, v_texCoord).r;
-            float alive = 0.0;
-            
-            // Conway's rules: B3/S23
-            if (current > 0.5) {
-                alive = (neighbors == 2 || neighbors == 3) ? 1.0 : 0.0;
-            } else {
-                alive = (neighbors == 3) ? 1.0 : 0.0;
-            }
-            
-            gl_FragColor = vec4(alive, 0.0, 0.0, 1.0);
-        }
-    `,
-    
-    rule110: `
-        precision highp float;
-        uniform sampler2D u_state;
-        uniform float u_width;
-        varying vec2 v_texCoord;
-        
-        void main() {
-            float cellWidth = 1.0 / u_width;
-            
-            // Sample neighbors with wrapping
-            vec2 leftCoord = v_texCoord - vec2(cellWidth, 0.0);
-            vec2 rightCoord = v_texCoord + vec2(cellWidth, 0.0);
-            
-            leftCoord.x = fract(leftCoord.x);
-            rightCoord.x = fract(rightCoord.x);
-            
-            float left = texture2D(u_state, leftCoord).r;
-            float center = texture2D(u_state, v_texCoord).r;
-            float right = texture2D(u_state, rightCoord).r;
-            
-            // Rule 110: 01101110 in binary
-            float sum = left * 4.0 + center * 2.0 + right;
-            float result = 0.0;
-            
-            if (sum == 6.0 || sum == 5.0 || sum == 3.0 || sum == 2.0 || sum == 1.0) {
-                result = 1.0;
-            }
-            
-            gl_FragColor = vec4(result, 0.0, 0.0, 1.0);
-        }
-    `
-};
-
 class GridSimulation {
     constructor(config) {
         this.width = config.width;
@@ -93,15 +16,16 @@ class GridSimulation {
         this.wrap = config.wrap !== false;  // Default true
         this.generation = 0;
         
+        // Rule (GLSL shader) is required - this is the user's application logic
+        if (!config.rule) {
+            throw new Error('GridSimulation requires a "rule" (GLSL fragment shader source)');
+        }
+        
         // Initialize GPU compute
         this.compute = new GPUCompute(config.canvas);
         
-        // Compile kernel
-        const ruleSource = typeof config.rule === 'string' 
-            ? RULES[config.rule] || RULES.gameOfLife
-            : config.rule;
-        
-        this.kernel = this.compute.compileKernel(ruleSource);
+        // Compile the user's shader
+        this.kernel = this.compute.compileKernel(config.rule);
         
         // Create ping-pong buffers
         this.buffer0 = this.compute.createBuffer(this.width, this.height);

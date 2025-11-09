@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Falling Sand Simulation</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #1a1a1a;
+            color: #fff;
+        }
+        h1 {
+            text-align: center;
+        }
+        .container {
+            display: grid;
+            grid-template-columns: 1fr 300px;
+            gap: 20px;
+        }
+        canvas {
+            border: 2px solid #444;
+            display: block;
+            cursor: crosshair;
+            background: #0a0a0a;
+            image-rendering: pixelated;
+        }
+        .controls {
+            background: #2a2a2a;
+            padding: 20px;
+            border-radius: 8px;
+        }
+        h2 {
+            margin-top: 0;
+            color: #fff;
+        }
+        .material-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+            margin: 20px 0;
+        }
+        .material-btn {
+            padding: 15px;
+            border: 3px solid transparent;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: bold;
+            transition: all 0.2s;
+            color: #fff;
+        }
+        .material-btn:hover {
+            transform: scale(1.05);
+        }
+        .material-btn.active {
+            border-color: #fff;
+            box-shadow: 0 0 10px rgba(255,255,255,0.5);
+        }
+        .mat-empty { background: #111; }
+        .mat-sand { background: #c2b280; color: #333; }
+        .mat-water { background: #4a90e2; }
+        .mat-stone { background: #666; }
+        .mat-wood { background: #8b4513; }
+        .mat-oil { background: #2a2a2a; border: 2px solid #666; }
+        
+        .brush-control {
+            margin: 20px 0;
+        }
+        .brush-control label {
+            display: block;
+            margin-bottom: 10px;
+            font-weight: bold;
+        }
+        .brush-control input {
+            width: 100%;
+        }
+        .brush-value {
+            text-align: center;
+            font-size: 18px;
+            font-weight: bold;
+            margin-top: 5px;
+        }
+        .action-btns {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        button {
+            padding: 12px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: bold;
+            transition: background 0.2s;
+        }
+        .clear-btn {
+            background: #f44336;
+            color: white;
+        }
+        .clear-btn:hover {
+            background: #d32f2f;
+        }
+        .pause-btn {
+            background: #ff9800;
+            color: white;
+        }
+        .pause-btn:hover {
+            background: #f57c00;
+        }
+        .stats {
+            background: #333;
+            padding: 15px;
+            border-radius: 4px;
+            margin-top: 20px;
+        }
+        .stat-row {
+            display: grid;
+            grid-template-columns: 100px 1fr;
+            gap: 10px;
+            margin: 8px 0;
+        }
+        .stat-label {
+            font-weight: bold;
+        }
+        .instructions {
+            background: #333;
+            padding: 15px;
+            border-radius: 4px;
+            margin-top: 20px;
+            font-size: 13px;
+            line-height: 1.6;
+        }
+        .instructions strong {
+            color: #4a90e2;
+        }
+    </style>
+</head>
+<body>
+    <h1>🏖️ Falling Sand Simulation</h1>
+    
+    <div class="container">
+        <div>
+            <canvas id="canvas" width="512" height="512"></canvas>
+        </div>
+
+        <div class="controls">
+            <h2>Materials</h2>
+            <div class="material-grid">
+                <button class="material-btn mat-sand active" data-material="SAND">🏖️ Sand</button>
+                <button class="material-btn mat-water" data-material="WATER">💧 Water</button>
+                <button class="material-btn mat-stone" data-material="STONE">🪨 Stone</button>
+                <button class="material-btn mat-wood" data-material="WOOD">🪵 Wood</button>
+                <button class="material-btn mat-oil" data-material="OIL">🛢️ Oil</button>
+                <button class="material-btn mat-empty" data-material="EMPTY">🌫️ Eraser</button>
+            </div>
+
+            <div class="brush-control">
+                <label>Brush Size</label>
+                <input type="range" id="brushSize" min="1" max="10" value="3">
+                <div class="brush-value" id="brushValue">3</div>
+            </div>
+
+            <div class="action-btns">
+                <button class="clear-btn" id="clearBtn">Clear All</button>
+                <button class="pause-btn" id="pauseBtn">Pause</button>
+            </div>
+
+            <div class="stats">
+                <div class="stat-row">
+                    <div class="stat-label">FPS:</div>
+                    <div id="fps">-</div>
+                </div>
+                <div class="stat-row">
+                    <div class="stat-label">Generation:</div>
+                    <div id="generation">0</div>
+                </div>
+            </div>
+
+            <div class="instructions">
+                <strong>Instructions:</strong><br>
+                • Click and drag to place materials<br>
+                • Sand falls and piles up<br>
+                • Water flows and spreads<br>
+                • Oil floats on water<br>
+                • Stone and Wood are static<br>
+                • Use Eraser to remove materials
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { FallingSandSimulation, MATERIALS, MATERIAL_COLORS } from './falling-sand-sim.js';
+
+        const SIZE = 256;
+        const DISPLAY_SIZE = 512;
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+
+        // Create simulation
+        const sim = new FallingSandSimulation(SIZE, SIZE);
+
+        // UI state
+        let currentMaterial = MATERIALS.SAND;
+        let brushSize = 3;
+        let isDrawing = false;
+        let lastX = -1, lastY = -1;
+        let isPaused = false;
+
+        // Animation state
+        let frameCount = 0;
+        let fpsTime = 0;
+        let lastTime = performance.now();
+
+        // Render simulation to canvas
+        function render() {
+            const buffer = sim.getBuffer();
+            const imageData = ctx.createImageData(SIZE, SIZE);
+            
+            for (let i = 0; i < buffer.length; i++) {
+                const material = Math.round(buffer[i]);
+                const color = MATERIAL_COLORS[material] || [255, 0, 255];
+                const baseIdx = i * 4;
+                imageData.data[baseIdx] = color[0];
+                imageData.data[baseIdx + 1] = color[1];
+                imageData.data[baseIdx + 2] = color[2];
+                imageData.data[baseIdx + 3] = 255;
+            }
+            
+            ctx.putImageData(imageData, 0, 0);
+            ctx.drawImage(canvas, 0, 0, SIZE, SIZE, 0, 0, DISPLAY_SIZE, DISPLAY_SIZE);
+        }
+
+        // Animation loop
+        function animate(currentTime) {
+            const deltaTime = currentTime - lastTime;
+
+            if (!isPaused) {
+                sim.step();
+                render();
+                
+                // Update stats
+                document.getElementById('generation').textContent = sim.generation;
+                
+                frameCount++;
+                fpsTime += deltaTime;
+                if (fpsTime >= 1000) {
+                    document.getElementById('fps').textContent = frameCount;
+                    frameCount = 0;
+                    fpsTime = 0;
+                }
+            }
+
+            lastTime = currentTime;
+            requestAnimationFrame(animate);
+        }
+
+        // Material selection
+        document.querySelectorAll('.material-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.material-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                currentMaterial = MATERIALS[btn.dataset.material];
+            });
+        });
+
+        // Brush size
+        document.getElementById('brushSize').addEventListener('input', (e) => {
+            brushSize = parseInt(e.target.value);
+            document.getElementById('brushValue').textContent = brushSize;
+        });
+
+        // Clear button
+        document.getElementById('clearBtn').addEventListener('click', () => {
+            sim.clear();
+            render();
+        });
+
+        // Pause button
+        document.getElementById('pauseBtn').addEventListener('click', (e) => {
+            isPaused = !isPaused;
+            e.target.textContent = isPaused ? 'Resume' : 'Pause';
+        });
+
+        // Mouse drawing
+        function getGridCoords(e) {
+            const rect = canvas.getBoundingClientRect();
+            const x = Math.floor((e.clientX - rect.left) / DISPLAY_SIZE * SIZE);
+            const y = Math.floor((e.clientY - rect.top) / DISPLAY_SIZE * SIZE);
+            return { x, y };
+        }
+
+        canvas.addEventListener('mousedown', (e) => {
+            isDrawing = true;
+            const { x, y } = getGridCoords(e);
+            sim.placeMaterial(x, y, currentMaterial, brushSize);
+            lastX = x;
+            lastY = y;
+            render();
+        });
+
+        canvas.addEventListener('mousemove', (e) => {
+            if (!isDrawing) return;
+            const { x, y } = getGridCoords(e);
+            
+            if (lastX !== -1 && lastY !== -1) {
+                sim.drawLine(lastX, lastY, x, y, currentMaterial, brushSize);
+            } else {
+                sim.placeMaterial(x, y, currentMaterial, brushSize);
+            }
+            
+            lastX = x;
+            lastY = y;
+            render();
+        });
+
+        canvas.addEventListener('mouseup', () => {
+            isDrawing = false;
+            lastX = -1;
+            lastY = -1;
+        });
+
+        canvas.addEventListener('mouseleave', () => {
+            isDrawing = false;
+            lastX = -1;
+            lastY = -1;
+        });
+
+        // Touch support
+        canvas.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            const touch = e.touches[0];
+            const rect = canvas.getBoundingClientRect();
+            const x = Math.floor((touch.clientX - rect.left) / DISPLAY_SIZE * SIZE);
+            const y = Math.floor((touch.clientY - rect.top) / DISPLAY_SIZE * SIZE);
+            isDrawing = true;
+            sim.placeMaterial(x, y, currentMaterial, brushSize);
+            lastX = x;
+            lastY = y;
+            render();
+        });
+
+        canvas.addEventListener('touchmove', (e) => {
+            e.preventDefault();
+            if (!isDrawing) return;
+            const touch = e.touches[0];
+            const rect = canvas.getBoundingClientRect();
+            const x = Math.floor((touch.clientX - rect.left) / DISPLAY_SIZE * SIZE);
+            const y = Math.floor((touch.clientY - rect.top) / DISPLAY_SIZE * SIZE);
+            
+            if (lastX !== -1 && lastY !== -1) {
+                sim.drawLine(lastX, lastY, x, y, currentMaterial, brushSize);
+            }
+            
+            lastX = x;
+            lastY = y;
+            render();
+        });
+
+        canvas.addEventListener('touchend', () => {
+            isDrawing = false;
+            lastX = -1;
+            lastY = -1;
+        });
+
+        // Start simulation
+        render();
+        requestAnimationFrame(animate);
+    </script>
+</body>
+</html>
+

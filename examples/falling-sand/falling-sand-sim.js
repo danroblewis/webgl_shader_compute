@@ -1,0 +1,312 @@
+/**
+ * Falling Sand Simulation Engine
+ * Physics simulation with multiple particle types (sand, water, oil, stone, wood)
+ */
+
+import { GridSimulation } from '../../grid-simulation.js';
+
+// Material types
+export const MATERIALS = {
+    EMPTY: 0.0,
+    SAND: 1.0,
+    WATER: 2.0,
+    STONE: 3.0,
+    WOOD: 4.0,
+    OIL: 5.0
+};
+
+// Material colors for rendering
+export const MATERIAL_COLORS = {
+    [MATERIALS.EMPTY]: [10, 10, 10],
+    [MATERIALS.SAND]: [194, 178, 128],
+    [MATERIALS.WATER]: [74, 144, 226],
+    [MATERIALS.STONE]: [102, 102, 102],
+    [MATERIALS.WOOD]: [139, 69, 19],
+    [MATERIALS.OIL]: [42, 42, 42]
+};
+
+// Falling sand physics shader
+const FALLING_SAND_SHADER = `
+    precision highp float;
+    uniform sampler2D u_state;
+    uniform float u_width;
+    uniform float u_height;
+    varying vec2 v_texCoord;
+    
+    const float EMPTY = 0.0;
+    const float SAND = 1.0;
+    const float WATER = 2.0;
+    const float STONE = 3.0;
+    const float WOOD = 4.0;
+    const float OIL = 5.0;
+    
+    float getCell(vec2 offset) {
+        vec2 coord = v_texCoord + offset / vec2(u_width, u_height);
+        if (coord.x < 0.0 || coord.x > 1.0 || coord.y < 0.0 || coord.y > 1.0) {
+            return STONE; // Walls
+        }
+        return texture2D(u_state, coord).r;
+    }
+    
+    bool isEmpty(float mat) {
+        return mat < 0.5;
+    }
+    
+    bool isLiquid(float mat) {
+        return mat > 1.5 && mat < 5.5;
+    }
+    
+    bool canDisplace(float current, float target) {
+        if (isEmpty(target)) return true;
+        
+        // Sand can displace water and oil
+        if (current > 0.5 && current < 1.5) {
+            return isLiquid(target);
+        }
+        
+        // Water can displace oil (oil floats)
+        if (current > 1.5 && current < 2.5) {
+            return target > 4.5 && target < 5.5; // OIL
+        }
+        
+        return false;
+    }
+    
+    void main() {
+        float current = getCell(vec2(0.0, 0.0));
+        
+        // Static materials don't move
+        if (current > 2.5 && current < 4.5) {
+            gl_FragColor = vec4(current, 0.0, 0.0, 1.0);
+            return;
+        }
+        
+        // Empty cells stay empty
+        if (isEmpty(current)) {
+            gl_FragColor = vec4(EMPTY, 0.0, 0.0, 1.0);
+            return;
+        }
+        
+        float below = getCell(vec2(0.0, 1.0));
+        float belowLeft = getCell(vec2(-1.0, 1.0));
+        float belowRight = getCell(vec2(1.0, 1.0));
+        float left = getCell(vec2(-1.0, 0.0));
+        float right = getCell(vec2(1.0, 0.0));
+        
+        // SAND physics
+        if (current > 0.5 && current < 1.5) {
+            if (canDisplace(current, below)) {
+                gl_FragColor = vec4(below, 0.0, 0.0, 1.0);
+                return;
+            }
+            if (canDisplace(current, belowLeft) && isEmpty(left)) {
+                gl_FragColor = vec4(belowLeft, 0.0, 0.0, 1.0);
+                return;
+            }
+            if (canDisplace(current, belowRight) && isEmpty(right)) {
+                gl_FragColor = vec4(belowRight, 0.0, 0.0, 1.0);
+                return;
+            }
+            gl_FragColor = vec4(current, 0.0, 0.0, 1.0);
+            return;
+        }
+        
+        // WATER physics
+        if (current > 1.5 && current < 2.5) {
+            if (canDisplace(current, below)) {
+                gl_FragColor = vec4(below, 0.0, 0.0, 1.0);
+                return;
+            }
+            if (canDisplace(current, belowLeft)) {
+                gl_FragColor = vec4(belowLeft, 0.0, 0.0, 1.0);
+                return;
+            }
+            if (canDisplace(current, belowRight)) {
+                gl_FragColor = vec4(belowRight, 0.0, 0.0, 1.0);
+                return;
+            }
+            // Spread horizontally
+            if (isEmpty(left) && isEmpty(right)) {
+                float rand = fract(sin(dot(v_texCoord, vec2(12.9898, 78.233))) * 43758.5453);
+                if (rand > 0.5) {
+                    gl_FragColor = vec4(left, 0.0, 0.0, 1.0);
+                } else {
+                    gl_FragColor = vec4(right, 0.0, 0.0, 1.0);
+                }
+                return;
+            }
+            if (isEmpty(left)) {
+                gl_FragColor = vec4(left, 0.0, 0.0, 1.0);
+                return;
+            }
+            if (isEmpty(right)) {
+                gl_FragColor = vec4(right, 0.0, 0.0, 1.0);
+                return;
+            }
+            gl_FragColor = vec4(current, 0.0, 0.0, 1.0);
+            return;
+        }
+        
+        // OIL physics (similar to water but floats)
+        if (current > 4.5 && current < 5.5) {
+            if (isEmpty(below)) {
+                gl_FragColor = vec4(below, 0.0, 0.0, 1.0);
+                return;
+            }
+            if (isEmpty(belowLeft)) {
+                gl_FragColor = vec4(belowLeft, 0.0, 0.0, 1.0);
+                return;
+            }
+            if (isEmpty(belowRight)) {
+                gl_FragColor = vec4(belowRight, 0.0, 0.0, 1.0);
+                return;
+            }
+            // Float on water
+            if (below > 1.5 && below < 2.5) {
+                gl_FragColor = vec4(below, 0.0, 0.0, 1.0);
+                return;
+            }
+            // Spread horizontally
+            if (isEmpty(left)) {
+                gl_FragColor = vec4(left, 0.0, 0.0, 1.0);
+                return;
+            }
+            if (isEmpty(right)) {
+                gl_FragColor = vec4(right, 0.0, 0.0, 1.0);
+                return;
+            }
+            gl_FragColor = vec4(current, 0.0, 0.0, 1.0);
+            return;
+        }
+        
+        gl_FragColor = vec4(current, 0.0, 0.0, 1.0);
+    }
+`;
+
+export class FallingSandSimulation {
+    constructor(width, height, options = {}) {
+        this.width = width;
+        this.height = height;
+        
+        // Create underlying grid simulation
+        this.sim = new GridSimulation({
+            width,
+            height,
+            rule: FALLING_SAND_SHADER,
+            initialState: options.initialState || 'empty',
+            canvas: options.canvas
+        });
+    }
+    
+    // === High-Level API ===
+    
+    /**
+     * Place material in a circular brush pattern
+     */
+    placeMaterial(x, y, material, brushSize = 1) {
+        const buffer = this.sim.getCurrentBuffer();
+        
+        for (let dy = -brushSize; dy <= brushSize; dy++) {
+            for (let dx = -brushSize; dx <= brushSize; dx++) {
+                const dist = Math.sqrt(dx * dx + dy * dy);
+                if (dist <= brushSize) {
+                    const px = x + dx;
+                    const py = y + dy;
+                    
+                    if (px >= 0 && px < this.width && py >= 0 && py < this.height) {
+                        buffer[py * this.width + px] = material;
+                    }
+                }
+            }
+        }
+        
+        this.sim.syncBuffer(buffer);
+    }
+    
+    /**
+     * Draw a line of material between two points
+     */
+    drawLine(x0, y0, x1, y1, material, brushSize = 1) {
+        const dx = Math.abs(x1 - x0);
+        const dy = Math.abs(y1 - y0);
+        const sx = x0 < x1 ? 1 : -1;
+        const sy = y0 < y1 ? 1 : -1;
+        let err = dx - dy;
+
+        while (true) {
+            this.placeMaterial(x0, y0, material, brushSize);
+
+            if (x0 === x1 && y0 === y1) break;
+            const e2 = 2 * err;
+            if (e2 > -dy) {
+                err -= dy;
+                x0 += sx;
+            }
+            if (e2 < dx) {
+                err += dx;
+                y0 += sy;
+            }
+        }
+    }
+    
+    /**
+     * Run simulation for N steps
+     */
+    step(count = 1) {
+        this.sim.step(count);
+    }
+    
+    /**
+     * Clear all cells
+     */
+    clear() {
+        this.sim.clear();
+    }
+    
+    /**
+     * Get current generation number
+     */
+    get generation() {
+        return this.sim.generation;
+    }
+    
+    // === Performance API (Layer 2) ===
+    
+    /**
+     * Get direct buffer access for efficient operations
+     */
+    getBuffer() {
+        return this.sim.getCurrentBuffer();
+    }
+    
+    /**
+     * Sync modified buffer back to GPU
+     */
+    syncBuffer(buffer) {
+        this.sim.syncBuffer(buffer);
+    }
+    
+    // === GPU Access (Layer 1) ===
+    
+    /**
+     * Get WebGL texture for custom rendering
+     */
+    getTexture() {
+        return this.sim.getTexture();
+    }
+    
+    /**
+     * Get WebGL context
+     */
+    getContext() {
+        return this.sim.getContext();
+    }
+    
+    /**
+     * Clean up resources
+     */
+    dispose() {
+        this.sim.dispose();
+    }
+}
+

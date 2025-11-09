@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Layer 3 Example: Game of Life (High-Level API)</title>
+    <title>Conway's Game of Life</title>
     <style>
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -14,16 +14,6 @@
         }
         h1 {
             color: #333;
-        }
-        .layer-badge {
-            display: inline-block;
-            background: #4CAF50;
-            color: white;
-            padding: 4px 12px;
-            border-radius: 12px;
-            font-size: 12px;
-            font-weight: bold;
-            margin-left: 10px;
         }
         .container {
             background: white;
@@ -80,39 +70,14 @@
         .stats-value {
             color: #333;
         }
-        .code-section {
-            background: #282c34;
-            color: #abb2bf;
-            padding: 20px;
-            border-radius: 4px;
-            overflow-x: auto;
-            margin: 20px 0;
-        }
-        .code-section pre {
-            margin: 0;
-            font-family: 'Consolas', 'Monaco', monospace;
-            font-size: 13px;
-            line-height: 1.5;
-        }
-        .highlight {
-            color: #61afef;
-        }
-        .comment {
-            color: #5c6370;
-            font-style: italic;
-        }
     </style>
 </head>
 <body>
-    <h1>Conway's Game of Life <span class="layer-badge">LAYER 3: High-Level API</span></h1>
+    <h1>🎮 Conway's Game of Life</h1>
     
     <div class="container">
         <p>
-            This example demonstrates the <strong>high-level convenience API</strong> (Layer 3).
-            It's simple to use but may trigger GPU downloads for individual cell queries.
-        </p>
-        <p>
-            <strong>Click cells to toggle them, or use the controls below.</strong>
+            Click cells to toggle them, or use the controls below to add patterns and run the simulation.
         </p>
     </div>
 
@@ -126,6 +91,8 @@
             <button id="randomBtn">Randomize</button>
             <button id="clearBtn">Clear</button>
             <button id="gliderBtn">Add Glider</button>
+            <button id="blinkerBtn">Add Blinker</button>
+            <button id="blockBtn">Add Block</button>
         </div>
 
         <div class="stats">
@@ -144,43 +111,16 @@
         </div>
     </div>
 
-    <div class="container">
-        <h2>Layer 3 API Used</h2>
-        <div class="code-section">
-            <pre><span class="comment">// High-level convenience methods</span>
-sim.<span class="highlight">setCell</span>(x, y, 1);           <span class="comment">// Set individual cell</span>
-sim.<span class="highlight">getCellState</span>(x, y);         <span class="comment">// Get individual cell (may download)</span>
-sim.<span class="highlight">step</span>();                      <span class="comment">// Run one generation</span>
-sim.<span class="highlight">randomize</span>(0.3);             <span class="comment">// Random fill (30% alive)</span>
-sim.<span class="highlight">clear</span>();                    <span class="comment">// Clear all cells</span>
-sim.<span class="highlight">fillRect</span>(x, y, w, h, 1);    <span class="comment">// Fill rectangular region</span>
-
-<span class="comment">// Query methods (trigger downloads)</span>
-const alive = sim.<span class="highlight">countAlive</span>();  <span class="comment">// Count alive cells</span>
-console.log('Generation:', sim.<span class="highlight">generation</span>);
-</pre>
-        </div>
-        <p>
-            ✅ <strong>Pros:</strong> Simple, intuitive, safe<br>
-            ⚠️ <strong>Cons:</strong> Individual cell queries may be slow (GPU download overhead)
-        </p>
-    </div>
-
     <script type="module">
-        import { GridSimulation } from './grid-simulation.js';
+        import { GameOfLifeSimulation } from './game-of-life-sim.js';
 
         const SIZE = 128;
         const CELL_SIZE = 4;
         const canvas = document.getElementById('canvas');
         const ctx = canvas.getContext('2d');
 
-        // Create simulation with high-level API
-        const sim = new GridSimulation({
-            width: SIZE,
-            height: SIZE,
-            rule: 'gameOfLife',
-            initialState: 'empty'
-        });
+        // Create Game of Life simulation
+        const sim = new GameOfLifeSimulation(SIZE, SIZE);
 
         // Animation state
         let playing = false;
@@ -191,8 +131,7 @@ console.log('Generation:', sim.<span class="highlight">generation</span>);
 
         // Render simulation to canvas
         function render() {
-            // Layer 2: Get buffer for efficient rendering
-            const buffer = sim.getCurrentBuffer();
+            const buffer = sim.getBuffer();
             
             const imageData = ctx.createImageData(SIZE, SIZE);
             for (let i = 0; i < buffer.length; i++) {
@@ -274,16 +213,25 @@ console.log('Generation:', sim.<span class="highlight">generation</span>);
         });
 
         document.getElementById('gliderBtn').addEventListener('click', () => {
-            // Add glider pattern at random position
             const x = Math.floor(Math.random() * (SIZE - 10)) + 5;
             const y = Math.floor(Math.random() * (SIZE - 10)) + 5;
-            
-            sim.setCell(x + 1, y, 1);
-            sim.setCell(x + 2, y + 1, 1);
-            sim.setCell(x, y + 2, 1);
-            sim.setCell(x + 1, y + 2, 1);
-            sim.setCell(x + 2, y + 2, 1);
-            
+            sim.addGlider(x, y);
+            render();
+            updateStats();
+        });
+
+        document.getElementById('blinkerBtn').addEventListener('click', () => {
+            const x = Math.floor(Math.random() * (SIZE - 10)) + 5;
+            const y = Math.floor(Math.random() * (SIZE - 10)) + 5;
+            sim.addBlinker(x, y);
+            render();
+            updateStats();
+        });
+
+        document.getElementById('blockBtn').addEventListener('click', () => {
+            const x = Math.floor(Math.random() * (SIZE - 10)) + 5;
+            const y = Math.floor(Math.random() * (SIZE - 10)) + 5;
+            sim.addBlock(x, y);
             render();
             updateStats();
         });
@@ -295,8 +243,7 @@ console.log('Generation:', sim.<span class="highlight">generation</span>);
             const y = Math.floor((e.clientY - rect.top) / CELL_SIZE);
             
             if (x >= 0 && x < SIZE && y >= 0 && y < SIZE) {
-                const current = sim.getCellState(x, y);
-                sim.setCell(x, y, current > 0.5 ? 0 : 1);
+                sim.toggleCell(x, y);
                 render();
                 updateStats();
             }

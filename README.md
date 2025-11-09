@@ -57,9 +57,19 @@ A high-performance, three-layer framework for GPU-accelerated cellular automata 
 
 ## 📚 Examples
 
-- **[Layer 3: Game of Life](example-layer3-gameoflife.html)** - High-level API
-- **[Layer 2: Performance](example-layer2-performance.html)** - Buffer access for speed
-- **[Layer 1: WebGL Interop](example-layer1-webgl.html)** - Custom rendering
+Each example includes a reusable **Simulation Engine** class that wraps the framework with domain-specific logic.
+
+### Featured
+- **[🏖️ Falling Sand Simulation](examples/falling-sand/)** - Interactive physics with sand, water, oil, and more!
+  - *Uses: `FallingSandSimulation` engine*
+
+### Framework Demonstrations
+- **[Layer 3: Game of Life](examples/game-of-life/)** - High-level API for convenient operations
+  - *Uses: `GameOfLifeSimulation` engine*
+- **[Layer 2: Performance Demo](examples/performance-demo/)** - Direct buffer access for maximum speed
+  - *Uses: `GameOfLifeSimulation` engine with buffer optimization*
+- **[Layer 1: WebGL Rendering](examples/webgl-rendering/)** - Custom GPU rendering with effects
+  - *Uses: `GameOfLifeSimulation` engine with custom WebGL shaders*
 
 ## 🎮 Layer 3: High-Level API
 
@@ -68,10 +78,25 @@ Simple, intuitive methods for common operations.
 ```javascript
 import { GridSimulation } from './grid-simulation.js';
 
+// Define your simulation rules (GLSL fragment shader)
+const myShader = `
+    precision highp float;
+    uniform sampler2D u_state;
+    uniform float u_width;
+    uniform float u_height;
+    varying vec2 v_texCoord;
+    
+    void main() {
+        // Your simulation logic here
+        float current = texture2D(u_state, v_texCoord).r;
+        gl_FragColor = vec4(current, 0.0, 0.0, 1.0);
+    }
+`;
+
 const sim = new GridSimulation({
     width: 256,
     height: 256,
-    rule: 'gameOfLife'
+    rule: myShader  // Your GLSL shader
 });
 
 // Individual cell operations
@@ -184,31 +209,6 @@ const topRight = buffer[sim.width - 1];
 const center = buffer[sim.width * sim.height / 2];
 ```
 
-## ⚙️ Built-in Rules
-
-```javascript
-// Conway's Game of Life
-new GridSimulation({ rule: 'gameOfLife' });
-
-// Rule 110 (1D cellular automaton)
-new GridSimulation({ rule: 'rule110' });
-
-// Custom rule (GLSL fragment shader)
-new GridSimulation({
-    rule: `
-        precision highp float;
-        uniform sampler2D u_state;
-        varying vec2 v_texCoord;
-        
-        void main() {
-            // Your custom rule here
-            float result = ...;
-            gl_FragColor = vec4(result, 0.0, 0.0, 1.0);
-        }
-    `
-});
-```
-
 ## 🔧 API Reference
 
 ### GridSimulation
@@ -216,13 +216,15 @@ new GridSimulation({
 #### Constructor
 ```javascript
 new GridSimulation({
-    width: number,
-    height: number,
-    rule?: string | GLSLSource,
-    wrap?: boolean,
-    initialState?: 'random' | 'empty' | Float32Array
+    width: number,              // Required: grid width
+    height: number,             // Required: grid height
+    rule: string,               // Required: GLSL fragment shader source
+    wrap?: boolean,             // Optional: wrap edges (default true)
+    initialState?: 'random' | 'empty' | Float32Array  // Optional: initial state
 })
 ```
+
+**Note:** `rule` is **required** - this is your simulation logic (GLSL shader).
 
 #### Layer 3: High-Level API
 - `getCellState(x, y): number` - Get cell state (may download)
