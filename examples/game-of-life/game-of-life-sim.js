@@ -13,14 +13,6 @@ const CellType = {
     ALIVE: new Float32Array([1, 0, 0, 0])
 };
 
-// Create reverse lookup map: RGBA → CellType name
-const RGBAToName = new Map();
-for (const [name, rgba] of Object.entries(CellType)) {
-    // Use first component as key (sufficient for Game of Life's binary state)
-    const key = rgba[0];
-    RGBAToName.set(key, CellType[name]);
-}
-
 export class GameOfLifeSimulation extends GridSimulation {
     /**
      * Cell types for Game of Life
@@ -46,6 +38,7 @@ export class GameOfLifeSimulation extends GridSimulation {
             width,
             height,
             rule: shaderSource,
+            cellTypes: CellType,  // Pass cell types to base class for reverse lookup
             initialState: options.initialState || 'empty',
             canvas: options.canvas
         });
@@ -66,14 +59,13 @@ export class GameOfLifeSimulation extends GridSimulation {
     }
     
     /**
-     * Convert RGBA vec4 to cell type enum (reverse lookup)
+     * Convert RGBA vec4 to cell type enum (uses base class reverse lookup)
      * @param {Array<number>|Float32Array} rgba - RGBA vec4 [r, g, b, a]
      * @returns {Float32Array} CellType enum value
      */
     #rgbaToCellType(rgba) {
-        // Use R channel as lookup key (binary: 0 or 1)
-        const key = rgba[0] > 0.5 ? 1 : 0;
-        return RGBAToName.get(key) || CellType.EMPTY;
+        // Use base class's reverse lookup
+        return this.rgbaToCellType(rgba);
     }
     
     // ============================================

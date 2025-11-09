@@ -41,6 +41,13 @@ class GridSimulation {
         this.cachedBuffer = null;
         this.bufferDirty = true;
         
+        // Optional: Cell type enum and reverse lookup (for subclasses)
+        this.cellTypes = config.cellTypes || null;
+        this.rgbaToType = null;
+        if (this.cellTypes) {
+            this.#buildReverseLookup();
+        }
+        
         // Initialize state
         if (config.initialState === 'random') {
             this.randomize(0.3);
@@ -385,6 +392,36 @@ class GridSimulation {
         
         this.compute.download(this.inputBuffer, this.cachedBuffer, this.width, this.height);
         this.bufferDirty = false;
+    }
+    
+    /**
+     * Build reverse lookup map from RGBA values to cell types
+     * Creates a Map that can convert RGBA vec4 back to cell type enum
+     */
+    #buildReverseLookup() {
+        this.rgbaToType = new Map();
+        
+        for (const [name, rgba] of Object.entries(this.cellTypes)) {
+            // Create a key from RGBA values (use R channel for simple lookups)
+            // For more complex cell types, could hash all 4 channels
+            const key = rgba[0];
+            this.rgbaToType.set(key, rgba);
+        }
+    }
+    
+    /**
+     * Convert RGBA to cell type using reverse lookup
+     * @param {Array<number>|Float32Array} rgba - RGBA vec4
+     * @returns {Float32Array|null} Cell type, or null if no cellTypes defined
+     */
+    rgbaToCellType(rgba) {
+        if (!this.rgbaToType) {
+            return null;  // No cell types defined
+        }
+        
+        // Quantize R channel to integer for lookup
+        const key = Math.round(rgba[0]);
+        return this.rgbaToType.get(key) || this.cellTypes[Object.keys(this.cellTypes)[0]];
     }
 }
 
