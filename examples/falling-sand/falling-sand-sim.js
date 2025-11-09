@@ -3,7 +3,7 @@
  * Physics simulation with multiple particle types (sand, water, oil, stone, wood)
  */
 
-import { GridSimulation } from '../../grid-simulation.js';
+import { SimulationEngine } from '../../simulation-engine.js';
 
 // Material types
 export const MATERIALS = {
@@ -183,28 +183,22 @@ const FALLING_SAND_SHADER = `
     }
 `;
 
-export class FallingSandSimulation {
+export class FallingSandSimulation extends SimulationEngine {
     constructor(width, height, options = {}) {
-        this.width = width;
-        this.height = height;
-        
-        // Create underlying grid simulation
-        this.sim = new GridSimulation({
+        super({
             width,
             height,
-            rule: FALLING_SAND_SHADER,
+            shader: FALLING_SAND_SHADER,
             initialState: options.initialState || 'empty',
             canvas: options.canvas
         });
     }
     
-    // === High-Level API ===
-    
     /**
      * Place material in a circular brush pattern
      */
     placeMaterial(x, y, material, brushSize = 1) {
-        const buffer = this.sim.getCurrentBuffer();
+        const buffer = this.getBuffer();
         
         for (let dy = -brushSize; dy <= brushSize; dy++) {
             for (let dx = -brushSize; dx <= brushSize; dx++) {
@@ -220,93 +214,7 @@ export class FallingSandSimulation {
             }
         }
         
-        this.sim.syncBuffer(buffer);
-    }
-    
-    /**
-     * Draw a line of material between two points
-     */
-    drawLine(x0, y0, x1, y1, material, brushSize = 1) {
-        const dx = Math.abs(x1 - x0);
-        const dy = Math.abs(y1 - y0);
-        const sx = x0 < x1 ? 1 : -1;
-        const sy = y0 < y1 ? 1 : -1;
-        let err = dx - dy;
-
-        while (true) {
-            this.placeMaterial(x0, y0, material, brushSize);
-
-            if (x0 === x1 && y0 === y1) break;
-            const e2 = 2 * err;
-            if (e2 > -dy) {
-                err -= dy;
-                x0 += sx;
-            }
-            if (e2 < dx) {
-                err += dx;
-                y0 += sy;
-            }
-        }
-    }
-    
-    /**
-     * Run simulation for N steps
-     */
-    step(count = 1) {
-        this.sim.step(count);
-    }
-    
-    /**
-     * Clear all cells
-     */
-    clear() {
-        this.sim.clear();
-    }
-    
-    /**
-     * Get current generation number
-     */
-    get generation() {
-        return this.sim.generation;
-    }
-    
-    // === Performance API (Layer 2) ===
-    
-    /**
-     * Get direct buffer access for efficient operations
-     */
-    getBuffer() {
-        return this.sim.getCurrentBuffer();
-    }
-    
-    /**
-     * Sync modified buffer back to GPU
-     */
-    syncBuffer(buffer) {
-        this.sim.syncBuffer(buffer);
-    }
-    
-    // === GPU Access (Layer 1) ===
-    
-    /**
-     * Get WebGL texture for custom rendering
-     */
-    getTexture() {
-        return this.sim.getTexture();
-    }
-    
-    /**
-     * Get WebGL context
-     */
-    getContext() {
-        return this.sim.getContext();
-    }
-    
-    /**
-     * Clean up resources
-     */
-    dispose() {
-        this.sim.dispose();
+        this.syncBuffer(buffer);
     }
 }
 

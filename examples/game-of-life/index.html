@@ -200,8 +200,41 @@
             document.getElementById('pauseBtn').disabled = true;
         });
 
+        // UI helper: Randomize cells
+        function randomize(density = 0.3) {
+            const buffer = sim.getBuffer();
+            for (let i = 0; i < buffer.length; i++) {
+                buffer[i] = Math.random() < density ? 1 : 0;
+            }
+            sim.syncBuffer(buffer);
+        }
+
+        // UI helper: Add glider pattern
+        function addGlider(x, y) {
+            sim.setCell(x + 1, y, 1);
+            sim.setCell(x + 2, y + 1, 1);
+            sim.setCell(x, y + 2, 1);
+            sim.setCell(x + 1, y + 2, 1);
+            sim.setCell(x + 2, y + 2, 1);
+        }
+
+        // UI helper: Add blinker pattern
+        function addBlinker(x, y) {
+            sim.setCell(x, y, 1);
+            sim.setCell(x + 1, y, 1);
+            sim.setCell(x + 2, y, 1);
+        }
+
+        // UI helper: Add block pattern
+        function addBlock(x, y) {
+            sim.setCell(x, y, 1);
+            sim.setCell(x + 1, y, 1);
+            sim.setCell(x, y + 1, 1);
+            sim.setCell(x + 1, y + 1, 1);
+        }
+
         document.getElementById('randomBtn').addEventListener('click', () => {
-            sim.randomize(0.3);
+            randomize(0.3);
             render();
             updateStats();
         });
@@ -215,7 +248,7 @@
         document.getElementById('gliderBtn').addEventListener('click', () => {
             const x = Math.floor(Math.random() * (SIZE - 10)) + 5;
             const y = Math.floor(Math.random() * (SIZE - 10)) + 5;
-            sim.addGlider(x, y);
+            addGlider(x, y);
             render();
             updateStats();
         });
@@ -223,7 +256,7 @@
         document.getElementById('blinkerBtn').addEventListener('click', () => {
             const x = Math.floor(Math.random() * (SIZE - 10)) + 5;
             const y = Math.floor(Math.random() * (SIZE - 10)) + 5;
-            sim.addBlinker(x, y);
+            addBlinker(x, y);
             render();
             updateStats();
         });
@@ -231,7 +264,7 @@
         document.getElementById('blockBtn').addEventListener('click', () => {
             const x = Math.floor(Math.random() * (SIZE - 10)) + 5;
             const y = Math.floor(Math.random() * (SIZE - 10)) + 5;
-            sim.addBlock(x, y);
+            addBlock(x, y);
             render();
             updateStats();
         });

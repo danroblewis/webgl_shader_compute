@@ -218,6 +218,15 @@ sim.syncBuffer(buffer);</code></pre>
             }
         }
 
+        // UI helper: Randomize cells
+        function randomize(density = 0.3) {
+            const buffer = sim.getBuffer();
+            for (let i = 0; i < buffer.length; i++) {
+                buffer[i] = Math.random() < density ? 1 : 0;
+            }
+            sim.syncBuffer(buffer);
+        }
+
         document.getElementById('runBtn').addEventListener('click', () => {
             // Reset stats
             downloadCount = 0;
@@ -226,7 +235,7 @@ sim.syncBuffer(buffer);</code></pre>
             fpsTime = 0;
             
             // Reset simulation
-            sim.randomize(0.3);
+            randomize(0.3);
             render();
             updateStats();
             

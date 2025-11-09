@@ -1,9 +1,11 @@
 /**
  * Conway's Game of Life Simulation Engine
  * A classic cellular automaton demonstrating emergence from simple rules
+ * 
+ * Rules: B3/S23 (Birth with 3 neighbors, Survival with 2 or 3 neighbors)
  */
 
-import { GridSimulation } from '../../grid-simulation.js';
+import { SimulationEngine } from '../../simulation-engine.js';
 
 const GAME_OF_LIFE_SHADER = `
     precision highp float;
@@ -48,87 +50,23 @@ const GAME_OF_LIFE_SHADER = `
     }
 `;
 
-export class GameOfLifeSimulation {
+export class GameOfLifeSimulation extends SimulationEngine {
     constructor(width, height, options = {}) {
-        this.width = width;
-        this.height = height;
-        
-        // Create underlying grid simulation
-        this.sim = new GridSimulation({
+        super({
             width,
             height,
-            rule: GAME_OF_LIFE_SHADER,
+            shader: GAME_OF_LIFE_SHADER,
             initialState: options.initialState || 'empty',
             canvas: options.canvas
         });
     }
     
-    // === High-Level API ===
-    
     /**
-     * Add a glider pattern at the specified position
-     */
-    addGlider(x, y) {
-        this.sim.setCell(x + 1, y, 1);
-        this.sim.setCell(x + 2, y + 1, 1);
-        this.sim.setCell(x, y + 2, 1);
-        this.sim.setCell(x + 1, y + 2, 1);
-        this.sim.setCell(x + 2, y + 2, 1);
-    }
-    
-    /**
-     * Add a blinker pattern (oscillator) at the specified position
-     */
-    addBlinker(x, y) {
-        this.sim.setCell(x, y, 1);
-        this.sim.setCell(x + 1, y, 1);
-        this.sim.setCell(x + 2, y, 1);
-    }
-    
-    /**
-     * Add a block pattern (still life) at the specified position
-     */
-    addBlock(x, y) {
-        this.sim.setCell(x, y, 1);
-        this.sim.setCell(x + 1, y, 1);
-        this.sim.setCell(x, y + 1, 1);
-        this.sim.setCell(x + 1, y + 1, 1);
-    }
-    
-    /**
-     * Toggle cell state at the specified position
+     * Toggle cell state (alive <-> dead)
      */
     toggleCell(x, y) {
-        const current = this.sim.getCellState(x, y);
-        this.sim.setCell(x, y, current > 0.5 ? 0 : 1);
-    }
-    
-    /**
-     * Run simulation for N steps
-     */
-    step(count = 1) {
-        this.sim.step(count);
-    }
-    
-    /**
-     * Randomize grid with given density
-     */
-    randomize(density = 0.3) {
-        this.sim.randomize(density);
-    }
-    
-    /**
-     * Clear all cells
-     */
-    clear() {
-        this.sim.clear();
-    }
-    
-    /**
-     * Get current generation number
-     */
-    get generation() {
-        return this.sim.generation;
+        const current = this.getCellState(x, y);
+        this.setCell(x, y, current > 0.5 ? 0 : 1);
     }
     
     /**
@@ -136,45 +74,6 @@ export class GameOfLifeSimulation {
      */
     countAlive() {
         return this.sim.countAlive();
-    }
-    
-    // === Performance API (Layer 2) ===
-    
-    /**
-     * Get direct buffer access for efficient operations
-     */
-    getBuffer() {
-        return this.sim.getCurrentBuffer();
-    }
-    
-    /**
-     * Sync modified buffer back to GPU
-     */
-    syncBuffer(buffer) {
-        this.sim.syncBuffer(buffer);
-    }
-    
-    // === GPU Access (Layer 1) ===
-    
-    /**
-     * Get WebGL texture for custom rendering
-     */
-    getTexture() {
-        return this.sim.getTexture();
-    }
-    
-    /**
-     * Get WebGL context
-     */
-    getContext() {
-        return this.sim.getContext();
-    }
-    
-    /**
-     * Clean up resources
-     */
-    dispose() {
-        this.sim.dispose();
     }
 }
 
