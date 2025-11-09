@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Cellular Automaton Playground</title>
+    <link rel="stylesheet" data-name="vs/editor/editor.main" href="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.45.0/min/vs/editor/editor.main.css">
     <style>
         * {
             margin: 0;
@@ -24,20 +25,12 @@
             background: #252526;
             padding: 12px 20px;
             border-bottom: 1px solid #3e3e42;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
         }
 
         h1 {
             font-size: 18px;
             font-weight: 500;
             color: #cccccc;
-        }
-
-        .header-controls {
-            display: flex;
-            gap: 10px;
         }
 
         .btn {
@@ -66,7 +59,7 @@
 
         .editors-container {
             display: flex;
-            height: 50vh;
+            height: 70vh;
             border-bottom: 1px solid #3e3e42;
         }
 
@@ -89,24 +82,16 @@
             border-bottom: 1px solid #3e3e42;
         }
 
-        textarea {
+        .editor-container {
             flex: 1;
-            background: #1e1e1e;
-            color: #d4d4d4;
-            border: none;
-            padding: 12px;
-            font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
-            font-size: 13px;
-            line-height: 1.5;
-            resize: none;
-            outline: none;
-            tab-size: 4;
+            position: relative;
         }
 
         .simulation-container {
             flex: 1;
             display: flex;
             background: #252526;
+            min-height: 0;
         }
 
         .canvas-area {
@@ -132,7 +117,7 @@
         }
 
         .control-group {
-            margin-bottom: 24px;
+            margin-bottom: 20px;
         }
 
         .control-group h3 {
@@ -142,6 +127,11 @@
             text-transform: uppercase;
             letter-spacing: 0.5px;
             margin-bottom: 12px;
+        }
+
+        .control-group:first-child {
+            border-bottom: 1px solid #3e3e42;
+            padding-bottom: 20px;
         }
 
         .material-grid {
@@ -232,22 +222,14 @@
     </style>
 </head>
 <body>
-    <div class="header">
-        <h1>🔬 Cellular Automaton Playground</h1>
-        <div class="header-controls">
-            <button class="btn" id="runBtn">▶️ Run Simulation</button>
-            <button class="btn secondary" id="resetBtn">🔄 Reset</button>
-        </div>
-    </div>
-
     <div class="editors-container">
         <div class="editor-pane">
             <div class="editor-header">JavaScript Simulation Class</div>
-            <textarea id="jsEditor" spellcheck="false"></textarea>
+            <div id="jsEditor" class="editor-container"></div>
         </div>
         <div class="editor-pane">
             <div class="editor-header">GLSL Fragment Shader</div>
-            <textarea id="glslEditor" spellcheck="false"></textarea>
+            <div id="glslEditor" class="editor-container"></div>
         </div>
     </div>
 
@@ -256,6 +238,16 @@
             <canvas id="canvas" width="512" height="512"></canvas>
         </div>
         <div class="controls-panel">
+            <div class="control-group">
+                <h3>Compile & Run</h3>
+                <div class="control-row">
+                    <button class="btn" id="runBtn" style="flex: 2;">▶️ Run Simulation</button>
+                </div>
+                <div class="control-row">
+                    <button class="btn secondary" id="resetBtn">🔄 Reset</button>
+                </div>
+            </div>
+
             <div class="control-group">
                 <h3>Materials</h3>
                 <div class="material-grid" id="materialsGrid">
@@ -301,6 +293,7 @@
         </div>
     </div>
 
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.45.0/min/vs/loader.min.js"></script>
     <script type="module">
         import { GridSimulation } from './grid-simulation.js';
         import { GPUCompute } from './gpu-compute.js';
@@ -393,22 +386,36 @@ void main() {
     }
 }`;
 
-        // Editor setup
-        const jsEditor = document.getElementById('jsEditor');
-        const glslEditor = document.getElementById('glslEditor');
-        jsEditor.value = defaultJS;
-        glslEditor.value = defaultGLSL;
+        // Monaco Editor setup
+        let jsEditor, glslEditor;
+        
+        require.config({ paths: { vs: 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.45.0/min/vs' } });
+        
+        require(['vs/editor/editor.main'], function () {
+            jsEditor = monaco.editor.create(document.getElementById('jsEditor'), {
+                value: defaultJS,
+                language: 'javascript',
+                theme: 'vs-dark',
+                automaticLayout: true,
+                minimap: { enabled: false },
+                fontSize: 13,
+                lineNumbers: 'on',
+                scrollBeyondLastLine: false,
+                wordWrap: 'on',
+                tabSize: 4
+            });
 
-        // Tab key support
-        [jsEditor, glslEditor].forEach(editor => {
-            editor.addEventListener('keydown', (e) => {
-                if (e.key === 'Tab') {
-                    e.preventDefault();
-                    const start = editor.selectionStart;
-                    const end = editor.selectionEnd;
-                    editor.value = editor.value.substring(0, start) + '    ' + editor.value.substring(end);
-                    editor.selectionStart = editor.selectionEnd = start + 4;
-                }
+            glslEditor = monaco.editor.create(document.getElementById('glslEditor'), {
+                value: defaultGLSL,
+                language: 'cpp', // Use C++ for GLSL syntax highlighting
+                theme: 'vs-dark',
+                automaticLayout: true,
+                minimap: { enabled: false },
+                fontSize: 13,
+                lineNumbers: 'on',
+                scrollBeyondLastLine: false,
+                wordWrap: 'on',
+                tabSize: 4
             });
         });
 
@@ -450,8 +457,12 @@ void main() {
             try {
                 clearError();
                 
-                const jsCode = jsEditor.value;
-                const glslCode = glslEditor.value;
+                if (!jsEditor || !glslEditor) {
+                    throw new Error('Editors not initialized yet');
+                }
+                
+                const jsCode = jsEditor.getValue();
+                const glslCode = glslEditor.getValue();
                 
                 // Create simulation class
                 const classCode = `
@@ -670,8 +681,10 @@ void main() {
         });
 
         document.getElementById('resetBtn').addEventListener('click', () => {
-            jsEditor.value = defaultJS;
-            glslEditor.value = defaultGLSL;
+            if (jsEditor && glslEditor) {
+                jsEditor.setValue(defaultJS);
+                glslEditor.setValue(defaultGLSL);
+            }
             sim = null;
             SimulationClass = null;
             isPaused = true;
