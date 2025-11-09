@@ -518,12 +518,13 @@ async function loadShader(path) {
                 // Verify initial state matches
                 const initialGrid = sim.getGrid();
                 const initialCheck = compareGrids(initialGrid, frames[0]);
+                
+                let errors = [];
                 if (!initialCheck.match) {
-                    sim.dispose();
-                    throw new Error(`Initial state mismatch: ${initialCheck.reason}`);
+                    errors.push(`Initial state mismatch: ${initialCheck.reason}`);
                 }
                 
-                // Run simulation and check each frame
+                // Run simulation and check each frame (continue even if errors occur)
                 for (let i = 1; i < frames.length; i++) {
                     sim.step();
                     
@@ -532,9 +533,14 @@ async function loadShader(path) {
                     
                     const check = compareGrids(actualGrid, frames[i]);
                     if (!check.match) {
-                        sim.dispose();
-                        throw new Error(`Frame ${i}: ${check.reason}`);
+                        errors.push(`Frame ${i}: ${check.reason}`);
                     }
+                }
+                
+                // If there were any errors, throw them all at once
+                if (errors.length > 0) {
+                    sim.dispose();
+                    throw new Error(errors.join('\n'));
                 }
             } else {
                 // Fast mode: run all steps, check only final frame
