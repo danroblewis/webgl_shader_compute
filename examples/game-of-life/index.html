@@ -118,6 +118,9 @@
         const CELL_SIZE = 4;
         const canvas = document.getElementById('canvas');
         const ctx = canvas.getContext('2d');
+        
+        // Get CellType enum from simulation class
+        const CellType = GameOfLifeSimulation.CellType;
 
         // Create Game of Life simulation (async)
         let sim;
@@ -209,35 +212,31 @@
 
         // UI helper: Randomize cells
         function randomize(density = 0.3) {
-            const buffer = sim.getCurrentBuffer();
-            for (let i = 0; i < buffer.length; i++) {
-                buffer[i] = Math.random() < density ? 1 : 0;
-            }
-            sim.syncBuffer(buffer);
+            sim.randomize(density);
         }
 
         // UI helper: Add glider pattern
         function addGlider(x, y) {
-            sim.setCell(x + 1, y, 1);
-            sim.setCell(x + 2, y + 1, 1);
-            sim.setCell(x, y + 2, 1);
-            sim.setCell(x + 1, y + 2, 1);
-            sim.setCell(x + 2, y + 2, 1);
+            sim.setCell(x + 1, y, CellType.ALIVE);
+            sim.setCell(x + 2, y + 1, CellType.ALIVE);
+            sim.setCell(x, y + 2, CellType.ALIVE);
+            sim.setCell(x + 1, y + 2, CellType.ALIVE);
+            sim.setCell(x + 2, y + 2, CellType.ALIVE);
         }
 
         // UI helper: Add blinker pattern
         function addBlinker(x, y) {
-            sim.setCell(x, y, 1);
-            sim.setCell(x + 1, y, 1);
-            sim.setCell(x + 2, y, 1);
+            sim.setCell(x, y, CellType.ALIVE);
+            sim.setCell(x + 1, y, CellType.ALIVE);
+            sim.setCell(x + 2, y, CellType.ALIVE);
         }
 
         // UI helper: Add block pattern
         function addBlock(x, y) {
-            sim.setCell(x, y, 1);
-            sim.setCell(x + 1, y, 1);
-            sim.setCell(x, y + 1, 1);
-            sim.setCell(x + 1, y + 1, 1);
+            sim.setCell(x, y, CellType.ALIVE);
+            sim.setCell(x + 1, y, CellType.ALIVE);
+            sim.setCell(x, y + 1, CellType.ALIVE);
+            sim.setCell(x + 1, y + 1, CellType.ALIVE);
         }
 
         document.getElementById('randomBtn').addEventListener('click', () => {
@@ -283,8 +282,7 @@
             const y = Math.floor((e.clientY - rect.top) / CELL_SIZE);
             
             if (x >= 0 && x < SIZE && y >= 0 && y < SIZE) {
-                const current = sim.getCellState(x, y);
-                sim.setCell(x, y, current > 0.5 ? 0 : 1);
+                sim.toggleCell(x, y);
                 render();
                 updateStats();
             }
