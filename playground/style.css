@@ -238,6 +238,11 @@ input[type="range"]::-webkit-slider-thumb {
     transform: scale(1.05);
 }
 
+.test-case-card.selected {
+    border-color: #2196F3;
+    box-shadow: 0 0 8px rgba(33, 150, 243, 0.6);
+}
+
 .test-case-card img {
     width: 100%;
     height: 100%;

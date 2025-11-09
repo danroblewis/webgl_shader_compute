@@ -12,7 +12,8 @@ const STORAGE_KEYS = {
     BRUSH_SIZE: 'playground_brush_size',
     SPEED: 'playground_speed',
     IS_PLAYING: 'playground_is_playing',
-    TEST_CASES: 'playground_test_cases'
+    TEST_CASES: 'playground_test_cases',
+    SELECTED_TEST_CASE: 'playground_selected_test_case'
 };
 
 // Load saved state from localStorage
@@ -35,6 +36,11 @@ function saveState() {
     localStorage.setItem(STORAGE_KEYS.BRUSH_SIZE, brushSize.toString());
     localStorage.setItem(STORAGE_KEYS.SPEED, stepsPerFrame.toString());
     localStorage.setItem(STORAGE_KEYS.IS_PLAYING, (!isPaused).toString());
+    if (selectedTestCaseId !== null) {
+        localStorage.setItem(STORAGE_KEYS.SELECTED_TEST_CASE, selectedTestCaseId.toString());
+    } else {
+        localStorage.removeItem(STORAGE_KEYS.SELECTED_TEST_CASE);
+    }
 }
 
 // Clear saved state
@@ -97,6 +103,13 @@ function loadTestCase(testCaseId) {
     buffer.set(cellData);
     sim.syncBuffer(buffer);
     
+    // Mark as selected
+    selectedTestCaseId = testCaseId;
+    saveState();
+    
+    // Update visual indication
+    renderTestCases();
+    
     // Start playing
     isPaused = false;
     document.getElementById('playToggle').checked = true;
@@ -109,6 +122,12 @@ function loadTestCase(testCaseId) {
 
 function deleteTestCase(testCaseId, event) {
     event.stopPropagation(); // Prevent loading the test case when clicking delete
+    
+    // Clear selection if deleting the selected test case
+    if (testCaseId === selectedTestCaseId) {
+        selectedTestCaseId = null;
+        saveState();
+    }
     
     const testCases = loadTestCases();
     const filtered = testCases.filter(tc => tc.id !== testCaseId);
@@ -128,6 +147,9 @@ function renderTestCases() {
     testCases.forEach(testCase => {
         const card = document.createElement('div');
         card.className = 'test-case-card';
+        if (testCase.id === selectedTestCaseId) {
+            card.classList.add('selected');
+        }
         card.title = `Generation ${testCase.generation}\n${new Date(testCase.timestamp).toLocaleString()}`;
         
         const img = document.createElement('img');
@@ -241,6 +263,7 @@ let isPaused = true;
 let lastTime = 0;
 let generationCount = 0;
 let hzTime = 0;
+let selectedTestCaseId = null;
 
 // Error handling
 function showError(message) {
@@ -298,8 +321,25 @@ async function compileAndRun() {
             initialState: 'empty'
         });
         
-        // Restore previous cell data if available, or randomize on first load
-        if (savedBuffer) {
+        // Load saved selected test case, or restore buffer, or randomize
+        const savedSelectedTestCaseId = localStorage.getItem(STORAGE_KEYS.SELECTED_TEST_CASE);
+        if (savedSelectedTestCaseId) {
+            // Reload the selected test case
+            selectedTestCaseId = parseInt(savedSelectedTestCaseId);
+            const testCases = loadTestCases();
+            const testCase = testCases.find(tc => tc.id === selectedTestCaseId);
+            if (testCase) {
+                const buffer = sim.getCurrentBuffer();
+                const cellData = new Float32Array(testCase.cellData);
+                buffer.set(cellData);
+                sim.syncBuffer(buffer);
+                console.log('✅ Reloaded selected test case:', selectedTestCaseId);
+            } else {
+                // Test case no longer exists, clear selection
+                selectedTestCaseId = null;
+            }
+        } else if (savedBuffer) {
+            // Restore previous cell data
             try {
                 const newBuffer = sim.getCurrentBuffer();
                 newBuffer.set(savedBuffer);
@@ -481,6 +521,13 @@ function getGridCoords(e) {
 
 function placeMaterial(x, y) {
     if (!sim || !currentMaterial) return;
+    
+    // Clear selected test case when drawing manually
+    if (selectedTestCaseId !== null) {
+        selectedTestCaseId = null;
+        saveState();
+        renderTestCases();
+    }
     
     const buffer = sim.getCurrentBuffer();
     for (let dy = -brushSize; dy <= brushSize; dy++) {
