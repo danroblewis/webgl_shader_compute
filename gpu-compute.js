@@ -13,34 +13,28 @@ class GPUCompute {
     constructor(canvas = null) {
         // Create or use provided canvas
         this.canvas = canvas || document.createElement('canvas');
-        this.gl = this.canvas.getContext('webgl', {
+        this.gl = this.canvas.getContext('webgl2', {
             premultipliedAlpha: false,
             preserveDrawingBuffer: true
         });
         
         if (!this.gl) {
-            throw new Error('WebGL not supported');
+            throw new Error('WebGL 2 not supported');
         }
         
-        // Enable required extensions
+        // Enable color buffer float extension (needed for RGBA32F framebuffers)
         this.extensions = {
-            floatTexture: this.gl.getExtension('OES_texture_float'),
-            floatColorBuffer: this.gl.getExtension('WEBGL_color_buffer_float') || 
-                            this.gl.getExtension('EXT_color_buffer_float')
+            colorBufferFloat: this.gl.getExtension('EXT_color_buffer_float')
         };
         
-        if (!this.extensions.floatTexture) {
-            throw new Error('Float textures not supported');
+        if (!this.extensions.colorBufferFloat) {
+            throw new Error('EXT_color_buffer_float extension not supported (required for float framebuffers)');
         }
         
-        if (!this.extensions.floatColorBuffer) {
-            throw new Error('Float color buffers not supported (required for readback)');
-        }
-        
-        // Standard vertex shader for full-screen quad
-        this.vertexShaderSource = `
-            attribute vec2 a_position;
-            varying vec2 v_texCoord;
+        // Standard vertex shader for full-screen quad (WebGL 2 syntax)
+        this.vertexShaderSource = `#version 300 es
+            in vec2 a_position;
+            out vec2 v_texCoord;
             
             void main() {
                 gl_Position = vec4(a_position, 0.0, 1.0);
@@ -74,8 +68,11 @@ class GPUCompute {
      * @returns {Kernel} Compiled kernel (WebGLProgram)
      */
     compileKernel(fragmentSource) {
+        // Convert WebGL 1 shader syntax to WebGL 2 if needed
+        const convertedSource = this.#convertToWebGL2(fragmentSource);
+        
         const vertexShader = this.#createShader(this.gl.VERTEX_SHADER, this.vertexShaderSource);
-        const fragmentShader = this.#createShader(this.gl.FRAGMENT_SHADER, fragmentSource);
+        const fragmentShader = this.#createShader(this.gl.FRAGMENT_SHADER, convertedSource);
         
         const program = this.gl.createProgram();
         this.gl.attachShader(program, vertexShader);
@@ -103,15 +100,16 @@ class GPUCompute {
         const texture = this.gl.createTexture();
         this.gl.bindTexture(this.gl.TEXTURE_2D, texture);
         
+        // WebGL 2 with EXT_color_buffer_float: use RGBA32F for maximum precision
         this.gl.texImage2D(
             this.gl.TEXTURE_2D,
             0,
-            this.gl.RGBA,
+            this.gl.RGBA32F,  // Sized internal format (requires EXT_color_buffer_float)
             width,
             height,
             0,
-            this.gl.RGBA,
-            this.gl.FLOAT,
+            this.gl.RGBA,     // Format
+            this.gl.FLOAT,    // Type
             data
         );
         
@@ -316,6 +314,49 @@ class GPUCompute {
     // Private Methods
     // ============================================
     
+    #convertToWebGL2(source) {
+        // If already has version directive, return as-is
+        if (source.trim().startsWith('#version')) {
+            return source;
+        }
+        
+        // Convert WebGL 1 syntax to WebGL 2
+        let converted = source;
+        
+        // Add version directive
+        converted = `#version 300 es\n${converted}`;
+        
+        // Replace varying with in (for fragment shader)
+        converted = converted.replace(/varying\s+/g, 'in ');
+        
+        // Replace texture2D with texture
+        converted = converted.replace(/texture2D\s*\(/g, 'texture(');
+        
+        // Replace gl_FragColor with out variable
+        if (converted.includes('gl_FragColor')) {
+            // Add out declaration after precision
+            const precisionMatch = converted.match(/(precision\s+\w+\s+float\s*;)/);
+            if (precisionMatch) {
+                const precisionLine = precisionMatch[1];
+                converted = converted.replace(
+                    precisionLine,
+                    `${precisionLine}\nout vec4 fragColor;`
+                );
+            } else {
+                // Add after version directive
+                converted = converted.replace(
+                    '#version 300 es\n',
+                    '#version 300 es\nout vec4 fragColor;\n'
+                );
+            }
+            
+            // Replace gl_FragColor with fragColor
+            converted = converted.replace(/gl_FragColor/g, 'fragColor');
+        }
+        
+        return converted;
+    }
+    
     #createShader(type, source) {
         const shader = this.gl.createShader(type);
         this.gl.shaderSource(shader, source);
@@ -346,7 +387,15 @@ class GPUCompute {
         
         const status = this.gl.checkFramebufferStatus(this.gl.FRAMEBUFFER);
         if (status !== this.gl.FRAMEBUFFER_COMPLETE) {
-            throw new Error(`Framebuffer not complete: ${status.toString(16)}`);
+            const statusNames = {
+                0x8cd6: 'FRAMEBUFFER_INCOMPLETE_ATTACHMENT',
+                0x8cd7: 'FRAMEBUFFER_INCOMPLETE_MISSING_ATTACHMENT',
+                0x8cd9: 'FRAMEBUFFER_INCOMPLETE_DIMENSIONS',
+                0x8cdd: 'FRAMEBUFFER_UNSUPPORTED',
+                0x8cdb: 'FRAMEBUFFER_INCOMPLETE_MULTISAMPLE'
+            };
+            const statusName = statusNames[status] || 'UNKNOWN';
+            throw new Error(`Framebuffer not complete: ${statusName} (0x${status.toString(16)})`);
         }
         
         this.framebuffers.push(framebuffer);
