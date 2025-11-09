@@ -207,10 +207,7 @@ class TestRunner {
         const testElements = this.tests.map((test, idx) => {
             const el = document.createElement('div');
             el.className = 'test-item';
-            el.innerHTML = `
-                <div class="test-name">${idx + 1}. ${test.name}</div>
-                <div class="test-description" style="font-size: 12px; color: #858585;">${test.description}</div>
-            `;
+            el.innerHTML = `<div class="test-name">${idx + 1}. ${test.name}</div>`;
             testListEl.appendChild(el);
             return el;
         });
@@ -245,10 +242,6 @@ class TestRunner {
                 details.passed = true;
             } catch (error) {
                 el.className = 'test-item failed';
-                const errorEl = document.createElement('div');
-                errorEl.className = 'test-error';
-                errorEl.textContent = error.message;
-                el.appendChild(errorEl);
                 this.results.push({ name: test.name, passed: false, error: error.message });
                 details.passed = false;
                 details.error = error.message;
