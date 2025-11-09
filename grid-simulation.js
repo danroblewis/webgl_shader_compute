@@ -2,6 +2,9 @@
  * Grid Simulation (Layers 2 & 3)
  * High-level cellular automaton simulation with escape hatches
  * 
+ * CELLS ARE RGBA vec4: Each cell has 4 float values [r, g, b, a]
+ * Subclasses can interpret these however they want (e.g., binary, material types, etc.)
+ * 
  * Layer 3 (High-Level): getCellState(), setCell(), step()
  * Layer 2 (Buffer Access): getCurrentBuffer(), getSnapshotBuffer()
  * Layer 1 (GPU Access): getTexture(), getContext(), getBuffers()
@@ -34,7 +37,7 @@ class GridSimulation {
         this.inputBuffer = this.buffer0;
         this.outputBuffer = this.buffer1;
         
-        // Layer 2: Buffer cache
+        // Layer 2: Buffer cache (RGBA format: 4 floats per cell)
         this.cachedBuffer = null;
         this.bufferDirty = true;
         
@@ -42,12 +45,13 @@ class GridSimulation {
         if (config.initialState === 'random') {
             this.randomize(0.3);
         } else if (config.initialState instanceof Float32Array) {
-            const data = new Float32Array(this.width * this.height);
+            // Assume initialState is already in RGBA format (4 floats per cell)
+            const data = new Float32Array(this.width * this.height * 4);
             data.set(config.initialState);
             this.compute.upload(this.buffer0, data, this.width, this.height);
             this.bufferDirty = true;
         } else {
-            // Default: empty
+            // Default: empty (all zeros)
             this.clear();
         }
     }
@@ -57,29 +61,40 @@ class GridSimulation {
     // ============================================
     
     /**
-     * Get the state of a specific cell
+     * Get the state of a specific cell as RGBA vec4
      * Note: May trigger GPU download if buffer is stale
      * @param {number} x - X coordinate
      * @param {number} y - Y coordinate
-     * @returns {number} Cell state (0.0 or 1.0)
+     * @returns {Array<number>} Cell state as [r, g, b, a]
      */
     getCellState(x, y) {
         if (this.bufferDirty) {
             this.#downloadBuffer();
         }
         
-        return this.cachedBuffer[y * this.width + x];
+        const index = (y * this.width + x) * 4;
+        return [
+            this.cachedBuffer[index],
+            this.cachedBuffer[index + 1],
+            this.cachedBuffer[index + 2],
+            this.cachedBuffer[index + 3]
+        ];
     }
     
     /**
-     * Set the state of a specific cell
+     * Set the state of a specific cell from RGBA vec4
      * @param {number} x - X coordinate
      * @param {number} y - Y coordinate
-     * @param {number} value - Cell state (0.0 or 1.0)
+     * @param {Array<number>|Float32Array} value - Cell state as [r, g, b, a]
      */
     setCell(x, y, value) {
+        // Ensure value is array-like with 4 components
+        if (!value || value.length !== 4) {
+            throw new Error('Cell value must be an array of 4 floats [r, g, b, a]');
+        }
+        
         // Update GPU buffer directly
-        const data = new Float32Array([value]);
+        const data = new Float32Array(value);
         this.compute.uploadRegion(this.inputBuffer, data, x, y, 1, 1);
         
         // Invalidate cache
@@ -87,28 +102,41 @@ class GridSimulation {
     }
     
     /**
-     * Fill a rectangular region
+     * Fill a rectangular region with RGBA value
      * @param {number} x - X coordinate
      * @param {number} y - Y coordinate
      * @param {number} w - Width
      * @param {number} h - Height
-     * @param {number} value - Fill value
+     * @param {Array<number>|Float32Array} value - Fill value as [r, g, b, a]
      */
     fillRect(x, y, w, h, value) {
-        const data = new Float32Array(w * h);
-        data.fill(value);
+        if (!value || value.length !== 4) {
+            throw new Error('Fill value must be an array of 4 floats [r, g, b, a]');
+        }
+        
+        const data = new Float32Array(w * h * 4);
+        for (let i = 0; i < w * h; i++) {
+            data[i * 4] = value[0];
+            data[i * 4 + 1] = value[1];
+            data[i * 4 + 2] = value[2];
+            data[i * 4 + 3] = value[3];
+        }
         this.compute.uploadRegion(this.inputBuffer, data, x, y, w, h);
         this.bufferDirty = true;
     }
     
     /**
-     * Fill a circular region (approximate)
+     * Fill a circular region (approximate) with RGBA value
      * @param {number} cx - Center X
      * @param {number} cy - Center Y
      * @param {number} radius - Radius
-     * @param {number} value - Fill value
+     * @param {Array<number>|Float32Array} value - Fill value as [r, g, b, a]
      */
     fillCircle(cx, cy, radius, value) {
+        if (!value || value.length !== 4) {
+            throw new Error('Fill value must be an array of 4 floats [r, g, b, a]');
+        }
+        
         // Calculate bounding box
         const x0 = Math.max(0, Math.floor(cx - radius));
         const y0 = Math.max(0, Math.floor(cy - radius));
@@ -117,7 +145,7 @@ class GridSimulation {
         
         const w = x1 - x0;
         const h = y1 - y0;
-        const data = new Float32Array(w * h);
+        const data = new Float32Array(w * h * 4);
         
         // Fill pixels within circle
         for (let y = 0; y < h; y++) {
@@ -127,7 +155,11 @@ class GridSimulation {
                 const dist = Math.sqrt(dx * dx + dy * dy);
                 
                 if (dist <= radius) {
-                    data[y * w + x] = value;
+                    const i = (y * w + x) * 4;
+                    data[i] = value[0];
+                    data[i + 1] = value[1];
+                    data[i + 2] = value[2];
+                    data[i + 3] = value[3];
                 }
             }
         }
@@ -137,23 +169,27 @@ class GridSimulation {
     }
     
     /**
-     * Randomize grid with given probability
+     * Randomize grid with given probability (sets R channel to 0 or 1, others to 0)
+     * Subclasses should override this for custom randomization
      * @param {number} probability - Probability of cell being alive (0-1)
      */
     randomize(probability = 0.5) {
-        const data = new Float32Array(this.width * this.height);
-        for (let i = 0; i < data.length; i++) {
-            data[i] = Math.random() < probability ? 1.0 : 0.0;
+        const data = new Float32Array(this.width * this.height * 4);
+        for (let i = 0; i < this.width * this.height; i++) {
+            data[i * 4] = Math.random() < probability ? 1.0 : 0.0;  // R
+            data[i * 4 + 1] = 0.0;  // G
+            data[i * 4 + 2] = 0.0;  // B
+            data[i * 4 + 3] = 0.0;  // A
         }
         this.compute.upload(this.inputBuffer, data, this.width, this.height);
         this.bufferDirty = true;
     }
     
     /**
-     * Clear all cells to 0
+     * Clear all cells to [0, 0, 0, 0]
      */
     clear() {
-        const data = new Float32Array(this.width * this.height);
+        const data = new Float32Array(this.width * this.height * 4);
         this.compute.upload(this.inputBuffer, data, this.width, this.height);
         this.bufferDirty = true;
     }
@@ -197,24 +233,31 @@ class GridSimulation {
     /**
      * Count cells matching a predicate
      * Note: Triggers GPU download
-     * @param {Function} predicate - Function to test each cell
+     * @param {Function} predicate - Function to test each cell (receives [r,g,b,a])
      * @returns {number} Count of matching cells
      */
     countWhere(predicate) {
         const buffer = this.getCurrentBuffer();
         let count = 0;
-        for (let i = 0; i < buffer.length; i++) {
-            if (predicate(buffer[i])) count++;
+        for (let i = 0; i < this.width * this.height; i++) {
+            const cell = [
+                buffer[i * 4],
+                buffer[i * 4 + 1],
+                buffer[i * 4 + 2],
+                buffer[i * 4 + 3]
+            ];
+            if (predicate(cell)) count++;
         }
         return count;
     }
     
     /**
-     * Count alive cells (value > 0.5)
+     * Count "alive" cells (R channel > 0.5)
+     * Subclasses should override this for custom "alive" definitions
      * @returns {number} Number of alive cells
      */
     countAlive() {
-        return this.countWhere(cell => cell > 0.5);
+        return this.countWhere(cell => cell[0] > 0.5);
     }
     
     // ============================================
@@ -222,10 +265,11 @@ class GridSimulation {
     // ============================================
     
     /**
-     * Get current state as Float32Array
+     * Get current state as Float32Array in RGBA format
      * PERFORMANCE: Returns cached buffer if available (no download)
      * The returned array is a REFERENCE - modifications affect the cache
-     * @returns {Float32Array} Current state buffer
+     * Format: [r0, g0, b0, a0, r1, g1, b1, a1, ...] (4 floats per cell)
+     * @returns {Float32Array} Current state buffer (width * height * 4 floats)
      */
     getCurrentBuffer() {
         if (this.bufferDirty) {
@@ -237,7 +281,8 @@ class GridSimulation {
     /**
      * Force fresh download from GPU
      * Use this if you suspect the cache is stale
-     * @returns {Float32Array} Fresh state buffer
+     * Format: [r0, g0, b0, a0, r1, g1, b1, a1, ...] (4 floats per cell)
+     * @returns {Float32Array} Fresh state buffer (width * height * 4 floats)
      */
     getSnapshotBuffer() {
         this.#downloadBuffer();
@@ -247,9 +292,12 @@ class GridSimulation {
     /**
      * Upload modified buffer back to GPU
      * Use this after modifying the buffer returned by getCurrentBuffer()
-     * @param {Float32Array} buffer - Modified buffer
+     * @param {Float32Array} buffer - Modified buffer (RGBA format, 4 floats per cell)
      */
     syncBuffer(buffer) {
+        if (buffer.length !== this.width * this.height * 4) {
+            throw new Error(`Buffer size mismatch. Expected ${this.width * this.height * 4} floats (RGBA), got ${buffer.length}`);
+        }
         this.compute.upload(this.inputBuffer, buffer, this.width, this.height);
         this.cachedBuffer = buffer;
         this.bufferDirty = false;
@@ -331,7 +379,8 @@ class GridSimulation {
     
     #downloadBuffer() {
         if (!this.cachedBuffer) {
-            this.cachedBuffer = new Float32Array(this.width * this.height);
+            // RGBA format: 4 floats per cell
+            this.cachedBuffer = new Float32Array(this.width * this.height * 4);
         }
         
         this.compute.download(this.inputBuffer, this.cachedBuffer, this.width, this.height);
