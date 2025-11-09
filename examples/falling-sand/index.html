@@ -200,6 +200,12 @@
         const DISPLAY_SIZE = 512;
         const canvas = document.getElementById('canvas');
         const ctx = canvas.getContext('2d');
+        
+        // Offscreen canvas for simulation rendering (SIZE x SIZE)
+        const offscreenCanvas = document.createElement('canvas');
+        offscreenCanvas.width = SIZE;
+        offscreenCanvas.height = SIZE;
+        const offscreenCtx = offscreenCanvas.getContext('2d');
 
         // Create simulation (async)
         let sim;
@@ -225,7 +231,7 @@
         function render() {
             if (!sim) return;
             const buffer = sim.getCurrentBuffer();
-            const imageData = ctx.createImageData(SIZE, SIZE);
+            const imageData = offscreenCtx.createImageData(SIZE, SIZE);
             
             // Iterate over each cell (not each float in buffer)
             for (let cellIdx = 0; cellIdx < SIZE * SIZE; cellIdx++) {
@@ -239,8 +245,11 @@
                 imageData.data[imageIdx + 3] = 255;
             }
             
-            ctx.putImageData(imageData, 0, 0);
-            ctx.drawImage(canvas, 0, 0, SIZE, SIZE, 0, 0, DISPLAY_SIZE, DISPLAY_SIZE);
+            // Put imageData on offscreen canvas (SIZE x SIZE)
+            offscreenCtx.putImageData(imageData, 0, 0);
+            
+            // Scale offscreen canvas to display canvas (DISPLAY_SIZE x DISPLAY_SIZE)
+            ctx.drawImage(offscreenCanvas, 0, 0, SIZE, SIZE, 0, 0, DISPLAY_SIZE, DISPLAY_SIZE);
         }
 
         // Animation loop
