@@ -11,7 +11,8 @@ const STORAGE_KEYS = {
     GLSL_CODE: 'playground_glsl_code',
     BRUSH_SIZE: 'playground_brush_size',
     SPEED: 'playground_speed',
-    IS_PLAYING: 'playground_is_playing'
+    IS_PLAYING: 'playground_is_playing',
+    TEST_CASES: 'playground_test_cases'
 };
 
 // Load saved state from localStorage
@@ -39,6 +40,107 @@ function saveState() {
 // Clear saved state
 function clearState() {
     Object.values(STORAGE_KEYS).forEach(key => localStorage.removeItem(key));
+}
+
+// Test Cases Management
+function loadTestCases() {
+    const data = localStorage.getItem(STORAGE_KEYS.TEST_CASES);
+    return data ? JSON.parse(data) : [];
+}
+
+function saveTestCases(testCases) {
+    localStorage.setItem(STORAGE_KEYS.TEST_CASES, JSON.stringify(testCases));
+}
+
+function saveTestCase() {
+    if (!sim) {
+        alert('No simulation running!');
+        return;
+    }
+    
+    // Capture current state
+    const buffer = sim.getCurrentBuffer();
+    const cellData = Array.from(buffer); // Convert to regular array for JSON
+    
+    // Capture canvas as thumbnail (scaled down for storage efficiency)
+    const thumbnail = canvas.toDataURL('image/png', 0.7);
+    
+    // Create test case
+    const testCase = {
+        id: Date.now(),
+        timestamp: new Date().toISOString(),
+        cellData: cellData,
+        thumbnail: thumbnail,
+        generation: sim.generation
+    };
+    
+    // Save to localStorage
+    const testCases = loadTestCases();
+    testCases.push(testCase);
+    saveTestCases(testCases);
+    
+    // Re-render test cases
+    renderTestCases();
+    
+    console.log('✅ Test case saved!', testCase.id);
+}
+
+function loadTestCase(testCaseId) {
+    const testCases = loadTestCases();
+    const testCase = testCases.find(tc => tc.id === testCaseId);
+    
+    if (!testCase || !sim) return;
+    
+    // Restore cell data
+    const buffer = sim.getCurrentBuffer();
+    const cellData = new Float32Array(testCase.cellData);
+    buffer.set(cellData);
+    sim.syncBuffer(buffer);
+    
+    // Render
+    render();
+    
+    console.log('✅ Test case loaded!', testCaseId);
+}
+
+function deleteTestCase(testCaseId, event) {
+    event.stopPropagation(); // Prevent loading the test case when clicking delete
+    
+    const testCases = loadTestCases();
+    const filtered = testCases.filter(tc => tc.id !== testCaseId);
+    saveTestCases(filtered);
+    
+    renderTestCases();
+    
+    console.log('🗑 Test case deleted!', testCaseId);
+}
+
+function renderTestCases() {
+    const grid = document.getElementById('testCasesGrid');
+    const testCases = loadTestCases();
+    
+    grid.innerHTML = '';
+    
+    testCases.forEach(testCase => {
+        const card = document.createElement('div');
+        card.className = 'test-case-card';
+        card.title = `Generation ${testCase.generation}\n${new Date(testCase.timestamp).toLocaleString()}`;
+        
+        const img = document.createElement('img');
+        img.src = testCase.thumbnail;
+        img.alt = `Test case ${testCase.id}`;
+        
+        const deleteBtn = document.createElement('button');
+        deleteBtn.className = 'test-case-delete';
+        deleteBtn.textContent = '×';
+        deleteBtn.onclick = (e) => deleteTestCase(testCase.id, e);
+        
+        card.appendChild(img);
+        card.appendChild(deleteBtn);
+        card.onclick = () => loadTestCase(testCase.id);
+        
+        grid.appendChild(card);
+    });
 }
 
 // Monaco Editor setup
@@ -107,6 +209,9 @@ require(['vs/editor/editor.main'], function () {
 
     // Initial compile
     compileAndRun();
+    
+    // Load and render test cases
+    renderTestCases();
 });
 
 // Canvas setup
@@ -210,8 +315,8 @@ async function compileAndRun() {
             document.getElementById('playToggle').checked = shouldPlay;
         }
         
-        // Setup materials
-        setupMaterials();
+        // Setup cell types
+        setupCellTypes();
         
         // Initial render
         render();
@@ -223,46 +328,94 @@ async function compileAndRun() {
     }
 }
 
-// Setup materials from CellType
-function setupMaterials() {
-    const grid = document.getElementById('materialsGrid');
-    grid.innerHTML = '';
-    
-    // Default colors for common materials
-    const defaultColors = {
+// Generate color palette
+function generateColorPalette(name, index, total) {
+    // Predefined colors for common cell types
+    const predefinedColors = {
         EMPTY: [0, 0, 0],
+        ALIVE: [50, 255, 50],
+        DEAD: [0, 0, 0],
         SAND: [194, 178, 128],
         WATER: [64, 164, 223],
         OIL: [139, 69, 19],
         STONE: [128, 128, 128],
-        WOOD: [139, 90, 43]
+        WOOD: [139, 90, 43],
+        FIRE: [255, 100, 0],
+        STEAM: [200, 200, 255],
+        LAVA: [255, 69, 0]
     };
     
-    materialColors = {};
-    let firstMaterial = null;
+    if (predefinedColors[name]) {
+        return predefinedColors[name];
+    }
     
-    Object.entries(SimulationClass.CellType).forEach(([name, value]) => {
-        const materialValue = value[0]; // R channel
-        materialColors[materialValue] = defaultColors[name] || [255, 0, 255];
+    // Generate color using HSL for better distribution
+    const hue = (index * 360 / total) % 360;
+    const saturation = 70 + (index % 3) * 10;
+    const lightness = 50 + (index % 2) * 10;
+    
+    // Convert HSL to RGB
+    const h = hue / 360;
+    const s = saturation / 100;
+    const l = lightness / 100;
+    
+    const hue2rgb = (p, q, t) => {
+        if (t < 0) t += 1;
+        if (t > 1) t -= 1;
+        if (t < 1/6) return p + (q - p) * 6 * t;
+        if (t < 1/2) return q;
+        if (t < 2/3) return p + (q - p) * (2/3 - t) * 6;
+        return p;
+    };
+    
+    let r, g, b;
+    if (s === 0) {
+        r = g = b = l;
+    } else {
+        const q = l < 0.5 ? l * (1 + s) : l + s - l * s;
+        const p = 2 * l - q;
+        r = hue2rgb(p, q, h + 1/3);
+        g = hue2rgb(p, q, h);
+        b = hue2rgb(p, q, h - 1/3);
+    }
+    
+    return [Math.round(r * 255), Math.round(g * 255), Math.round(b * 255)];
+}
+
+function setupCellTypes() {
+    const grid = document.getElementById('celltypeGrid');
+    grid.innerHTML = '';
+    
+    materialColors = {};
+    let firstCellType = null;
+    
+    const cellTypeEntries = Object.entries(SimulationClass.CellType);
+    
+    cellTypeEntries.forEach(([name, value], index) => {
+        const cellValue = value[0]; // R channel
+        const color = generateColorPalette(name, index, cellTypeEntries.length);
+        materialColors[cellValue] = color;
         
-        if (!firstMaterial) firstMaterial = value;
+        if (!firstCellType) firstCellType = value;
         
         const btn = document.createElement('button');
-        btn.className = 'material-btn';
+        btn.className = 'celltype-btn';
         btn.textContent = name;
-        btn.dataset.material = materialValue;
+        btn.dataset.celltype = cellValue;
+        // Use linear gradient with semi-transparent black overlay to darken the color
+        btn.style.background = `linear-gradient(rgba(0, 0, 0, 0.4), rgba(0, 0, 0, 0.4)), rgb(${color[0]}, ${color[1]}, ${color[2]})`;
         btn.addEventListener('click', () => {
-            document.querySelectorAll('.material-btn').forEach(b => b.classList.remove('active'));
+            document.querySelectorAll('.celltype-btn').forEach(b => b.classList.remove('active'));
             btn.classList.add('active');
             currentMaterial = value;
         });
         grid.appendChild(btn);
     });
     
-    // Select first material
-    if (firstMaterial) {
-        currentMaterial = firstMaterial;
-        grid.querySelector('.material-btn').classList.add('active');
+    // Select first cell type
+    if (firstCellType) {
+        currentMaterial = firstCellType;
+        grid.querySelector('.celltype-btn').classList.add('active');
     }
 }
 
@@ -401,6 +554,10 @@ document.getElementById('randomizeBtn').addEventListener('click', () => {
     render();
 });
 
+document.getElementById('saveTestBtn').addEventListener('click', () => {
+    saveTestCase();
+});
+
 document.getElementById('resetBtn').addEventListener('click', () => {
     if (!confirm('Reset to default template? This will clear your current code and saved state.')) {
         return;
@@ -415,7 +572,7 @@ document.getElementById('resetBtn').addEventListener('click', () => {
     isPaused = true;
     document.getElementById('playToggle').checked = false;
     ctx.clearRect(0, 0, DISPLAY_SIZE, DISPLAY_SIZE);
-    document.getElementById('materialsGrid').innerHTML = '';
+    document.getElementById('celltypeGrid').innerHTML = '';
     document.getElementById('generation').textContent = '0';
     document.getElementById('fps').textContent = '-';
     clearError();

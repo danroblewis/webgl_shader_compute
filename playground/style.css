@@ -131,31 +131,33 @@ canvas {
     margin-bottom: 10px;
 }
 
-.material-grid {
+.celltype-grid {
     display: flex;
     gap: 6px;
     flex-wrap: wrap;
 }
 
-.material-btn {
+.celltype-btn {
     padding: 8px 12px;
-    background: #3c3c3c;
     border: 2px solid transparent;
     border-radius: 4px;
-    color: #d4d4d4;
+    color: white;
     cursor: pointer;
     font-size: 11px;
+    font-weight: 500;
     transition: all 0.2s;
     white-space: nowrap;
+    text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.8);
 }
 
-.material-btn:hover {
-    background: #505050;
+.celltype-btn:hover {
+    transform: scale(1.05);
+    border-color: rgba(255, 255, 255, 0.3);
 }
 
-.material-btn.active {
-    border-color: #0e639c;
-    background: #1e3a52;
+.celltype-btn.active {
+    border-color: #2196F3;
+    box-shadow: 0 0 8px rgba(33, 150, 243, 0.5);
 }
 
 .control-row {
@@ -198,15 +200,78 @@ input[type="range"]::-webkit-slider-thumb {
     border-radius: 50%;
 }
 
-.materials-area {
+.grid-areas {
+    display: flex;
+    gap: 20px;
     padding: 15px 0;
     border-top: 1px solid #3e3e42;
 }
 
-.materials-area h3 {
+.celltypes-area {
+    flex: 1;
+    min-width: 0;
+}
+
+.test-cases-area {
+    flex: 1;
+    min-width: 0;
+}
+
+.test-cases-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(40px, 1fr));
+    gap: 8px;
+}
+
+.test-case-card {
+    position: relative;
+    aspect-ratio: 1;
+    border: 2px solid #3e3e42;
+    border-radius: 4px;
+    overflow: hidden;
+    cursor: pointer;
+    transition: border-color 0.2s, transform 0.1s;
+}
+
+.test-case-card:hover {
+    border-color: #2196F3;
+    transform: scale(1.05);
+}
+
+.test-case-card img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    image-rendering: pixelated;
+}
+
+.test-case-delete {
+    position: absolute;
+    top: 2px;
+    right: 2px;
+    width: 18px;
+    height: 18px;
+    background: rgba(190, 17, 0, 0.9);
+    color: white;
+    border: none;
+    border-radius: 3px;
+    cursor: pointer;
     font-size: 11px;
-    margin: 0 0 10px 0;
-    color: #cccccc;
+    line-height: 1;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    transition: opacity 0.2s;
+}
+
+.test-case-card:hover .test-case-delete {
+    opacity: 1;
+}
+
+.test-case-delete:hover {
+    background: #be1100;
 }
 
 .controls-bottom {
