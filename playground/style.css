@@ -252,16 +252,16 @@ input[type="range"]::-webkit-slider-thumb {
 
 .test-case-delete {
     position: absolute;
-    top: 2px;
-    right: 2px;
-    width: 18px;
-    height: 18px;
+    top: 1px;
+    right: 1px;
+    width: 12px;
+    height: 12px;
     background: rgba(190, 17, 0, 0.9);
     color: white;
     border: none;
-    border-radius: 3px;
+    border-radius: 2px;
     cursor: pointer;
-    font-size: 11px;
+    font-size: 10px;
     line-height: 1;
     padding: 0;
     display: flex;
