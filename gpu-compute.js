@@ -257,10 +257,18 @@ class GPUCompute {
      * @param {number} height - Region height
      */
     uploadRegion(buffer, src, x, y, width, height) {
-        // Pack data into RGBA format
-        const packed = new Float32Array(width * height * 4);
-        for (let i = 0; i < src.length; i++) {
-            packed[i * 4] = src[i];
+        let packed;
+        
+        // Check if data is already in RGBA format (4 floats per cell)
+        if (src.length === width * height * 4) {
+            // Data is already RGBA-packed, use directly
+            packed = src;
+        } else {
+            // Pack single-channel data into RGBA format
+            packed = new Float32Array(width * height * 4);
+            for (let i = 0; i < src.length; i++) {
+                packed[i * 4] = src[i];
+            }
         }
         
         this.gl.bindTexture(this.gl.TEXTURE_2D, buffer);
