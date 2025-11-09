@@ -118,9 +118,6 @@
         const CELL_SIZE = 4;
         const canvas = document.getElementById('canvas');
         const ctx = canvas.getContext('2d');
-        
-        // Get CellType enum from simulation class
-        const CellType = GameOfLifeSimulation.CellType;
 
         // Create Game of Life simulation (async)
         let sim;
@@ -217,26 +214,26 @@
 
         // UI helper: Add glider pattern
         function addGlider(x, y) {
-            sim.setCell(x + 1, y, CellType.ALIVE);
-            sim.setCell(x + 2, y + 1, CellType.ALIVE);
-            sim.setCell(x, y + 2, CellType.ALIVE);
-            sim.setCell(x + 1, y + 2, CellType.ALIVE);
-            sim.setCell(x + 2, y + 2, CellType.ALIVE);
+            sim.setCell(x + 1, y, sim.ALIVE);
+            sim.setCell(x + 2, y + 1, sim.ALIVE);
+            sim.setCell(x, y + 2, sim.ALIVE);
+            sim.setCell(x + 1, y + 2, sim.ALIVE);
+            sim.setCell(x + 2, y + 2, sim.ALIVE);
         }
 
         // UI helper: Add blinker pattern
         function addBlinker(x, y) {
-            sim.setCell(x, y, CellType.ALIVE);
-            sim.setCell(x + 1, y, CellType.ALIVE);
-            sim.setCell(x + 2, y, CellType.ALIVE);
+            sim.setCell(x, y, sim.ALIVE);
+            sim.setCell(x + 1, y, sim.ALIVE);
+            sim.setCell(x + 2, y, sim.ALIVE);
         }
 
         // UI helper: Add block pattern
         function addBlock(x, y) {
-            sim.setCell(x, y, CellType.ALIVE);
-            sim.setCell(x + 1, y, CellType.ALIVE);
-            sim.setCell(x, y + 1, CellType.ALIVE);
-            sim.setCell(x + 1, y + 1, CellType.ALIVE);
+            sim.setCell(x, y, sim.ALIVE);
+            sim.setCell(x + 1, y, sim.ALIVE);
+            sim.setCell(x, y + 1, sim.ALIVE);
+            sim.setCell(x + 1, y + 1, sim.ALIVE);
         }
 
         document.getElementById('randomBtn').addEventListener('click', () => {

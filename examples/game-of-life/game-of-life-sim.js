@@ -39,82 +39,17 @@ export class GameOfLifeSimulation extends GridSimulation {
             initialState: options.initialState || 'empty',
             canvas: options.canvas
         });
+        
+        // Instance shortcuts to cell types
+        this.EMPTY = GameOfLifeSimulation.CellType.EMPTY;
+        this.ALIVE = GameOfLifeSimulation.CellType.ALIVE;
     }
     
     // ============================================
-    // Cell Type Conversion
+    // No overrides needed - CellType values are already RGBA!
+    // Users call: sim.setCell(x, y, sim.ALIVE)
+    // Base class handles everything.
     // ============================================
-    
-    /**
-     * Convert cell type to RGBA vec4 (direct lookup)
-     * @param {Float32Array} cellType - CellType enum value (already RGBA)
-     * @returns {Float32Array} RGBA vec4 [r, g, b, a]
-     */
-    #cellTypeToRGBA(cellType) {
-        // Cell types are already RGBA arrays, just return them
-        return cellType;
-    }
-    
-    /**
-     * Convert RGBA vec4 to cell type enum (uses base class reverse lookup)
-     * @param {Array<number>|Float32Array} rgba - RGBA vec4 [r, g, b, a]
-     * @returns {Float32Array} CellType enum value
-     */
-    #rgbaToCellType(rgba) {
-        // Use base class's reverse lookup
-        return this.rgbaToCellType(rgba);
-    }
-    
-    // ============================================
-    // Overridden Methods - Binary Interface
-    // ============================================
-    
-    /**
-     * Get cell type at position
-     * @param {number} x - X coordinate
-     * @param {number} y - Y coordinate
-     * @returns {number} CellType enum value
-     */
-    getCellState(x, y) {
-        const rgba = super.getCellState(x, y);
-        return this.#rgbaToCellType(rgba);
-    }
-    
-    /**
-     * Set cell type at position
-     * @param {number} x - X coordinate
-     * @param {number} y - Y coordinate
-     * @param {number} cellType - CellType enum value
-     */
-    setCell(x, y, cellType) {
-        const rgba = this.#cellTypeToRGBA(cellType);
-        super.setCell(x, y, rgba);
-    }
-    
-    /**
-     * Fill rectangular region with cell type
-     * @param {number} x - X coordinate
-     * @param {number} y - Y coordinate
-     * @param {number} w - Width
-     * @param {number} h - Height
-     * @param {number} cellType - CellType enum value
-     */
-    fillRect(x, y, w, h, cellType) {
-        const rgba = this.#cellTypeToRGBA(cellType);
-        super.fillRect(x, y, w, h, rgba);
-    }
-    
-    /**
-     * Fill circular region with cell type
-     * @param {number} cx - Center X
-     * @param {number} cy - Center Y
-     * @param {number} radius - Radius
-     * @param {number} cellType - CellType enum value
-     */
-    fillCircle(cx, cy, radius, cellType) {
-        const rgba = this.#cellTypeToRGBA(cellType);
-        super.fillCircle(cx, cy, radius, rgba);
-    }
     
     /**
      * Randomize grid with given probability
@@ -151,7 +86,7 @@ export class GameOfLifeSimulation extends GridSimulation {
      * @returns {boolean} True if cell is alive
      */
     isAlive(x, y) {
-        const state = this.getCellState(x, y);
+        const state = this.getCellState(x, y);  // Returns RGBA vec4
         return state[0] > 0.5;  // Check R channel
     }
     
@@ -161,8 +96,7 @@ export class GameOfLifeSimulation extends GridSimulation {
      * @param {number} y - Y coordinate
      */
     toggleCell(x, y) {
-        const current = this.getCellState(x, y);
-        const CellType = GameOfLifeSimulation.CellType;
-        this.setCell(x, y, current[0] > 0.5 ? CellType.EMPTY : CellType.ALIVE);
+        const current = this.getCellState(x, y);  // Returns RGBA vec4
+        this.setCell(x, y, current[0] > 0.5 ? this.EMPTY : this.ALIVE);
     }
 }
