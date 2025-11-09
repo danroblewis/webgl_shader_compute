@@ -64,7 +64,9 @@ export class FallingSandSimulation extends GridSimulation {
                     const py = y + dy;
                     
                     if (px >= 0 && px < this.width && py >= 0 && py < this.height) {
-                        buffer[py * this.width + px] = material;
+                        const cellIdx = py * this.width + px;
+                        const bufferIdx = cellIdx * 4;  // Each cell is 4 floats (RGBA)
+                        buffer[bufferIdx] = material;  // Write to R channel only
                     }
                 }
             }
