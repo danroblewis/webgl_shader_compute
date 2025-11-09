@@ -39,10 +39,6 @@ export class GameOfLifeSimulation extends GridSimulation {
             initialState: options.initialState || 'empty',
             canvas: options.canvas
         });
-        
-        // Instance shortcuts to cell types
-        this.EMPTY = GameOfLifeSimulation.CellType.EMPTY;
-        this.ALIVE = GameOfLifeSimulation.CellType.ALIVE;
     }
     
     // ============================================
@@ -58,11 +54,8 @@ export class GameOfLifeSimulation extends GridSimulation {
     randomize(probability = 0.5) {
         const buffer = this.getCurrentBuffer();
         for (let i = 0; i < this.width * this.height; i++) {
-            const alive = Math.random() < probability ? 1.0 : 0.0;
-            buffer[i * 4] = alive;
-            buffer[i * 4 + 1] = 0.0;
-            buffer[i * 4 + 2] = 0.0;
-            buffer[i * 4 + 3] = 0.0;
+            const cellType = Math.random() < probability ? this.ALIVE : this.EMPTY;
+            buffer.set(cellType, i * 4);
         }
         this.syncBuffer(buffer);
     }
@@ -88,15 +81,5 @@ export class GameOfLifeSimulation extends GridSimulation {
     isAlive(x, y) {
         const state = this.getCellState(x, y);  // Returns RGBA vec4
         return state[0] > 0.5;  // Check R channel
-    }
-    
-    /**
-     * Toggle cell state
-     * @param {number} x - X coordinate
-     * @param {number} y - Y coordinate
-     */
-    toggleCell(x, y) {
-        const current = this.getCellState(x, y);  // Returns RGBA vec4
-        this.setCell(x, y, current[0] > 0.5 ? this.EMPTY : this.ALIVE);
     }
 }
