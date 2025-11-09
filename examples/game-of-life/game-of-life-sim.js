@@ -62,8 +62,8 @@ export class GameOfLifeSimulation extends GridSimulation {
     countAlive() {
         const buffer = this.getCurrentBuffer();
         let count = 0;
-        for (let i = 0; i < buffer.length; i++) {
-            if (buffer[i] > 0.5) count++;
+        for (let i = 0; i < buffer.length; i += 4) {  // Skip by 4 (RGBA per cell)
+            if (buffer[i] > 0.5) count++;  // Check R channel only
         }
         return count;
     }
