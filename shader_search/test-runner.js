@@ -489,21 +489,27 @@ async function loadShader(path) {
                     throw new Error(errors.join('\n'));
                 }
             } else {
-                // Fast mode: run all steps, check only final frame
-                const numSteps = frames.length - 1;
+                // Fast mode: check every frame but without visualization
+                // Verify initial state matches
+                const initialGrid = sim.getGrid();
+                const initialCheck = compareGrids(initialGrid, frames[0]);
                 
-                for (let i = 0; i < numSteps; i++) {
-                    sim.step();
+                if (!initialCheck.match) {
+                    sim.dispose();
+                    throw new Error(`Initial state mismatch: ${initialCheck.reason}`);
                 }
                 
-                // Only download grid once at the end
-                const finalGrid = sim.getGrid();
-                const finalFrame = frames[frames.length - 1];
-                const check = compareGrids(finalGrid, finalFrame);
-                
-                if (!check.match) {
-                    sim.dispose();
-                    throw new Error(`Final frame (${frames.length - 1}): ${check.reason}`);
+                // Run simulation and check each frame
+                for (let i = 1; i < frames.length; i++) {
+                    sim.step();
+                    
+                    const actualGrid = sim.getGrid();
+                    const check = compareGrids(actualGrid, frames[i]);
+                    
+                    if (!check.match) {
+                        sim.dispose();
+                        throw new Error(`Frame ${i+1}: ${check.reason}`);
+                    }
                 }
             }
             

@@ -2,6 +2,7 @@
   "stone_remains_stationary.seq",
   "empty_grid_stays_empty.seq",
   "sand_falls_down_unimpeded.seq",
+  "sand_falls_down_unimpeded_mult.seq",
   "sand_stops_on_stone_floor.seq",
   "sand_grains_stack.seq",
   "sand_slides_diagonally.seq",
