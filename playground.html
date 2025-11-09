@@ -1,0 +1,689 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cellular Automaton Playground</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #1e1e1e;
+            color: #d4d4d4;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .header {
+            background: #252526;
+            padding: 12px 20px;
+            border-bottom: 1px solid #3e3e42;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        h1 {
+            font-size: 18px;
+            font-weight: 500;
+            color: #cccccc;
+        }
+
+        .header-controls {
+            display: flex;
+            gap: 10px;
+        }
+
+        .btn {
+            background: #0e639c;
+            color: white;
+            border: none;
+            padding: 6px 14px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 500;
+            transition: background 0.2s;
+        }
+
+        .btn:hover {
+            background: #1177bb;
+        }
+
+        .btn.secondary {
+            background: #3c3c3c;
+        }
+
+        .btn.secondary:hover {
+            background: #505050;
+        }
+
+        .editors-container {
+            display: flex;
+            height: 50vh;
+            border-bottom: 1px solid #3e3e42;
+        }
+
+        .editor-pane {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            border-right: 1px solid #3e3e42;
+        }
+
+        .editor-pane:last-child {
+            border-right: none;
+        }
+
+        .editor-header {
+            background: #2d2d30;
+            padding: 8px 12px;
+            font-size: 12px;
+            color: #999;
+            border-bottom: 1px solid #3e3e42;
+        }
+
+        textarea {
+            flex: 1;
+            background: #1e1e1e;
+            color: #d4d4d4;
+            border: none;
+            padding: 12px;
+            font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+            font-size: 13px;
+            line-height: 1.5;
+            resize: none;
+            outline: none;
+            tab-size: 4;
+        }
+
+        .simulation-container {
+            flex: 1;
+            display: flex;
+            background: #252526;
+        }
+
+        .canvas-area {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        canvas {
+            border: 1px solid #3e3e42;
+            image-rendering: pixelated;
+            cursor: crosshair;
+        }
+
+        .controls-panel {
+            width: 280px;
+            background: #2d2d30;
+            border-left: 1px solid #3e3e42;
+            padding: 20px;
+            overflow-y: auto;
+        }
+
+        .control-group {
+            margin-bottom: 24px;
+        }
+
+        .control-group h3 {
+            font-size: 12px;
+            font-weight: 600;
+            color: #999;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 12px;
+        }
+
+        .material-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+        }
+
+        .material-btn {
+            padding: 10px;
+            background: #3c3c3c;
+            border: 2px solid transparent;
+            border-radius: 4px;
+            color: #d4d4d4;
+            cursor: pointer;
+            font-size: 12px;
+            transition: all 0.2s;
+        }
+
+        .material-btn:hover {
+            background: #505050;
+        }
+
+        .material-btn.active {
+            border-color: #0e639c;
+            background: #1e3a52;
+        }
+
+        .control-row {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 8px;
+        }
+
+        .control-row .btn {
+            flex: 1;
+        }
+
+        .slider-group {
+            margin-bottom: 12px;
+        }
+
+        .slider-label {
+            display: flex;
+            justify-content: space-between;
+            font-size: 12px;
+            margin-bottom: 6px;
+            color: #cccccc;
+        }
+
+        input[type="range"] {
+            width: 100%;
+            height: 4px;
+            background: #3c3c3c;
+            outline: none;
+            border-radius: 2px;
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 14px;
+            height: 14px;
+            background: #0e639c;
+            cursor: pointer;
+            border-radius: 50%;
+        }
+
+        .stats {
+            font-size: 12px;
+            color: #999;
+            line-height: 1.8;
+        }
+
+        .error {
+            background: #5a1d1d;
+            border: 1px solid #be1100;
+            color: #f48771;
+            padding: 12px;
+            border-radius: 4px;
+            font-size: 12px;
+            margin-top: 12px;
+            font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+            white-space: pre-wrap;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🔬 Cellular Automaton Playground</h1>
+        <div class="header-controls">
+            <button class="btn" id="runBtn">▶️ Run Simulation</button>
+            <button class="btn secondary" id="resetBtn">🔄 Reset</button>
+        </div>
+    </div>
+
+    <div class="editors-container">
+        <div class="editor-pane">
+            <div class="editor-header">JavaScript Simulation Class</div>
+            <textarea id="jsEditor" spellcheck="false"></textarea>
+        </div>
+        <div class="editor-pane">
+            <div class="editor-header">GLSL Fragment Shader</div>
+            <textarea id="glslEditor" spellcheck="false"></textarea>
+        </div>
+    </div>
+
+    <div class="simulation-container">
+        <div class="canvas-area">
+            <canvas id="canvas" width="512" height="512"></canvas>
+        </div>
+        <div class="controls-panel">
+            <div class="control-group">
+                <h3>Materials</h3>
+                <div class="material-grid" id="materialsGrid">
+                    <!-- Populated dynamically -->
+                </div>
+            </div>
+
+            <div class="control-group">
+                <h3>Drawing</h3>
+                <div class="slider-group">
+                    <div class="slider-label">
+                        <span>Brush Size</span>
+                        <span id="brushValue">3</span>
+                    </div>
+                    <input type="range" id="brushSlider" min="1" max="20" value="3">
+                </div>
+            </div>
+
+            <div class="control-group">
+                <h3>Simulation</h3>
+                <div class="control-row">
+                    <button class="btn" id="playBtn">▶️ Play</button>
+                    <button class="btn secondary" id="pauseBtn" disabled>⏸ Pause</button>
+                </div>
+                <div class="control-row">
+                    <button class="btn secondary" id="stepBtn">⏭ Step</button>
+                    <button class="btn secondary" id="clearBtn">🗑 Clear</button>
+                </div>
+                <div class="control-row">
+                    <button class="btn secondary" id="randomizeBtn">🎲 Randomize</button>
+                </div>
+            </div>
+
+            <div class="control-group">
+                <h3>Stats</h3>
+                <div class="stats">
+                    <div>Generation: <strong id="generation">0</strong></div>
+                    <div>FPS: <strong id="fps">-</strong></div>
+                </div>
+            </div>
+
+            <div id="errorContainer"></div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { GridSimulation } from './grid-simulation.js';
+        import { GPUCompute } from './gpu-compute.js';
+
+        // Default templates
+        const defaultJS = `// Define your CellType enum
+static CellType = {
+    EMPTY: new Float32Array([0, 0, 0, 0]),
+    SAND: new Float32Array([1, 0, 0, 0]),
+    WATER: new Float32Array([2, 0, 0, 0]),
+    STONE: new Float32Array([3, 0, 0, 0])
+};
+
+// Optional: Override randomize for custom behavior
+randomize(probability = 0.3) {
+    const buffer = this.getCurrentBuffer();
+    const { SAND, EMPTY } = this.constructor.CellType;
+    for (let cellIdx = 0; cellIdx < this.width * this.height; cellIdx++) {
+        const cellType = Math.random() < probability ? SAND : EMPTY;
+        const bufferIdx = cellIdx * 4;
+        buffer.set(cellType, bufferIdx);
+    }
+    this.syncBuffer(buffer);
+}`;
+
+        const defaultGLSL = `precision highp float;
+
+uniform sampler2D u_state;
+uniform float u_width;
+uniform float u_height;
+
+varying vec2 v_texCoord;
+
+// Material constants
+const float EMPTY = 0.0;
+const float SAND = 1.0;
+const float WATER = 2.0;
+const float STONE = 3.0;
+
+vec4 getCell(vec2 offset) {
+    vec2 pixelSize = vec2(1.0) / vec2(u_width, u_height);
+    return texture2D(u_state, v_texCoord + offset * pixelSize);
+}
+
+void main() {
+    vec4 current = getCell(vec2(0.0, 0.0));
+    float material = current.r;
+    
+    // Stone never moves
+    if (material == STONE) {
+        gl_FragColor = current;
+        return;
+    }
+    
+    vec4 below = getCell(vec2(0.0, 1.0));
+    vec4 left = getCell(vec2(-1.0, 0.0));
+    vec4 right = getCell(vec2(1.0, 0.0));
+    
+    // Sand falls down or slides diagonally
+    if (material == SAND) {
+        if (below.r == EMPTY) {
+            gl_FragColor = vec4(EMPTY, 0.0, 0.0, 0.0);
+        } else if (getCell(vec2(-1.0, 1.0)).r == EMPTY) {
+            gl_FragColor = vec4(EMPTY, 0.0, 0.0, 0.0);
+        } else if (getCell(vec2(1.0, 1.0)).r == EMPTY) {
+            gl_FragColor = vec4(EMPTY, 0.0, 0.0, 0.0);
+        } else {
+            gl_FragColor = current;
+        }
+    }
+    // Empty cells can be filled from above
+    else if (material == EMPTY) {
+        vec4 above = getCell(vec2(0.0, -1.0));
+        if (above.r == SAND) {
+            gl_FragColor = above;
+        } else {
+            vec4 aboveLeft = getCell(vec2(-1.0, -1.0));
+            vec4 aboveRight = getCell(vec2(1.0, -1.0));
+            if (aboveLeft.r == SAND && right.r != EMPTY) {
+                gl_FragColor = aboveLeft;
+            } else if (aboveRight.r == SAND && left.r != EMPTY) {
+                gl_FragColor = aboveRight;
+            } else {
+                gl_FragColor = current;
+            }
+        }
+    }
+    else {
+        gl_FragColor = current;
+    }
+}`;
+
+        // Editor setup
+        const jsEditor = document.getElementById('jsEditor');
+        const glslEditor = document.getElementById('glslEditor');
+        jsEditor.value = defaultJS;
+        glslEditor.value = defaultGLSL;
+
+        // Tab key support
+        [jsEditor, glslEditor].forEach(editor => {
+            editor.addEventListener('keydown', (e) => {
+                if (e.key === 'Tab') {
+                    e.preventDefault();
+                    const start = editor.selectionStart;
+                    const end = editor.selectionEnd;
+                    editor.value = editor.value.substring(0, start) + '    ' + editor.value.substring(end);
+                    editor.selectionStart = editor.selectionEnd = start + 4;
+                }
+            });
+        });
+
+        // Canvas setup
+        const SIZE = 128;
+        const DISPLAY_SIZE = 512;
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        
+        const offscreenCanvas = document.createElement('canvas');
+        offscreenCanvas.width = SIZE;
+        offscreenCanvas.height = SIZE;
+        const offscreenCtx = offscreenCanvas.getContext('2d');
+
+        // State
+        let sim = null;
+        let SimulationClass = null;
+        let materialColors = {};
+        let currentMaterial = null;
+        let brushSize = 3;
+        let isDrawing = false;
+        let isPaused = true;
+        let lastTime = 0;
+        let frameCount = 0;
+        let fpsTime = 0;
+
+        // Error handling
+        function showError(message) {
+            const container = document.getElementById('errorContainer');
+            container.innerHTML = `<div class="error">${message}</div>`;
+        }
+
+        function clearError() {
+            document.getElementById('errorContainer').innerHTML = '';
+        }
+
+        // Run simulation
+        document.getElementById('runBtn').addEventListener('click', async () => {
+            try {
+                clearError();
+                
+                const jsCode = jsEditor.value;
+                const glslCode = glslEditor.value;
+                
+                // Create simulation class
+                const classCode = `
+                    class PlaygroundSimulation extends GridSimulation {
+                        ${jsCode}
+                    }
+                    return PlaygroundSimulation;
+                `;
+                
+                SimulationClass = new Function('GridSimulation', classCode)(GridSimulation);
+                
+                // Check if CellType is defined
+                if (!SimulationClass.CellType) {
+                    throw new Error('CellType static property must be defined');
+                }
+                
+                // Create simulation instance
+                sim = new SimulationClass({
+                    width: SIZE,
+                    height: SIZE,
+                    rule: glslCode,
+                    initialState: 'empty'
+                });
+                
+                // Setup materials
+                setupMaterials();
+                
+                // Initial render
+                render();
+                
+                console.log('✅ Simulation compiled successfully!');
+            } catch (error) {
+                showError(`Compilation Error:\n${error.message}\n\n${error.stack}`);
+                console.error('Compilation error:', error);
+            }
+        });
+
+        // Setup materials from CellType
+        function setupMaterials() {
+            const grid = document.getElementById('materialsGrid');
+            grid.innerHTML = '';
+            
+            // Default colors for common materials
+            const defaultColors = {
+                EMPTY: [0, 0, 0],
+                SAND: [194, 178, 128],
+                WATER: [64, 164, 223],
+                OIL: [139, 69, 19],
+                STONE: [128, 128, 128],
+                WOOD: [139, 90, 43]
+            };
+            
+            materialColors = {};
+            let firstMaterial = null;
+            
+            Object.entries(SimulationClass.CellType).forEach(([name, value]) => {
+                const materialValue = value[0]; // R channel
+                materialColors[materialValue] = defaultColors[name] || [255, 0, 255];
+                
+                if (name !== 'EMPTY') {
+                    if (!firstMaterial) firstMaterial = value;
+                    
+                    const btn = document.createElement('button');
+                    btn.className = 'material-btn';
+                    btn.textContent = name;
+                    btn.dataset.material = materialValue;
+                    btn.addEventListener('click', () => {
+                        document.querySelectorAll('.material-btn').forEach(b => b.classList.remove('active'));
+                        btn.classList.add('active');
+                        currentMaterial = value;
+                    });
+                    grid.appendChild(btn);
+                }
+            });
+            
+            // Select first material
+            if (firstMaterial) {
+                currentMaterial = firstMaterial;
+                grid.querySelector('.material-btn').classList.add('active');
+            }
+        }
+
+        // Render
+        function render() {
+            if (!sim) return;
+            
+            const buffer = sim.getCurrentBuffer();
+            const imageData = offscreenCtx.createImageData(SIZE, SIZE);
+            
+            for (let cellIdx = 0; cellIdx < SIZE * SIZE; cellIdx++) {
+                const bufferIdx = cellIdx * 4;
+                const material = Math.round(buffer[bufferIdx]);
+                const color = materialColors[material] || [255, 0, 255];
+                const imageIdx = cellIdx * 4;
+                imageData.data[imageIdx] = color[0];
+                imageData.data[imageIdx + 1] = color[1];
+                imageData.data[imageIdx + 2] = color[2];
+                imageData.data[imageIdx + 3] = 255;
+            }
+            
+            offscreenCtx.putImageData(imageData, 0, 0);
+            ctx.drawImage(offscreenCanvas, 0, 0, SIZE, SIZE, 0, 0, DISPLAY_SIZE, DISPLAY_SIZE);
+        }
+
+        // Animation loop
+        function animate(currentTime) {
+            requestAnimationFrame(animate);
+            
+            if (!sim || isPaused) return;
+            
+            sim.step();
+            render();
+            
+            // Update stats
+            frameCount++;
+            const deltaTime = currentTime - fpsTime;
+            if (deltaTime >= 1000) {
+                document.getElementById('fps').textContent = Math.round(frameCount / (deltaTime / 1000));
+                frameCount = 0;
+                fpsTime = currentTime;
+            }
+            
+            document.getElementById('generation').textContent = sim.generation;
+        }
+        
+        requestAnimationFrame(animate);
+
+        // Drawing
+        function getGridCoords(e) {
+            const rect = canvas.getBoundingClientRect();
+            const x = Math.floor((e.clientX - rect.left) / DISPLAY_SIZE * SIZE);
+            const y = Math.floor((e.clientY - rect.top) / DISPLAY_SIZE * SIZE);
+            return { x, y };
+        }
+
+        function placeMaterial(x, y) {
+            if (!sim || !currentMaterial) return;
+            
+            const buffer = sim.getCurrentBuffer();
+            for (let dy = -brushSize; dy <= brushSize; dy++) {
+                for (let dx = -brushSize; dx <= brushSize; dx++) {
+                    const dist = Math.sqrt(dx * dx + dy * dy);
+                    if (dist <= brushSize) {
+                        const px = x + dx;
+                        const py = y + dy;
+                        if (px >= 0 && px < SIZE && py >= 0 && py < SIZE) {
+                            const cellIdx = py * SIZE + px;
+                            const bufferIdx = cellIdx * 4;
+                            buffer.set(currentMaterial, bufferIdx);
+                        }
+                    }
+                }
+            }
+            sim.syncBuffer(buffer);
+            render();
+        }
+
+        canvas.addEventListener('mousedown', (e) => {
+            isDrawing = true;
+            const { x, y } = getGridCoords(e);
+            placeMaterial(x, y);
+        });
+
+        canvas.addEventListener('mousemove', (e) => {
+            if (!isDrawing) return;
+            const { x, y } = getGridCoords(e);
+            placeMaterial(x, y);
+        });
+
+        canvas.addEventListener('mouseup', () => {
+            isDrawing = false;
+        });
+
+        canvas.addEventListener('mouseleave', () => {
+            isDrawing = false;
+        });
+
+        // Controls
+        document.getElementById('brushSlider').addEventListener('input', (e) => {
+            brushSize = parseInt(e.target.value);
+            document.getElementById('brushValue').textContent = brushSize;
+        });
+
+        document.getElementById('playBtn').addEventListener('click', () => {
+            if (!sim) return;
+            isPaused = false;
+            document.getElementById('playBtn').disabled = true;
+            document.getElementById('pauseBtn').disabled = false;
+        });
+
+        document.getElementById('pauseBtn').addEventListener('click', () => {
+            isPaused = true;
+            document.getElementById('playBtn').disabled = false;
+            document.getElementById('pauseBtn').disabled = true;
+        });
+
+        document.getElementById('stepBtn').addEventListener('click', () => {
+            if (!sim) return;
+            sim.step();
+            render();
+            document.getElementById('generation').textContent = sim.generation;
+        });
+
+        document.getElementById('clearBtn').addEventListener('click', () => {
+            if (!sim) return;
+            sim.clear();
+            render();
+        });
+
+        document.getElementById('randomizeBtn').addEventListener('click', () => {
+            if (!sim) return;
+            if (typeof sim.randomize === 'function') {
+                sim.randomize();
+            }
+            render();
+        });
+
+        document.getElementById('resetBtn').addEventListener('click', () => {
+            jsEditor.value = defaultJS;
+            glslEditor.value = defaultGLSL;
+            sim = null;
+            SimulationClass = null;
+            isPaused = true;
+            document.getElementById('playBtn').disabled = false;
+            document.getElementById('pauseBtn').disabled = true;
+            ctx.clearRect(0, 0, DISPLAY_SIZE, DISPLAY_SIZE);
+            document.getElementById('materialsGrid').innerHTML = '';
+            document.getElementById('generation').textContent = '0';
+            document.getElementById('fps').textContent = '-';
+            clearError();
+        });
+    </script>
+</body>
+</html>
+
