@@ -227,14 +227,13 @@
             const buffer = sim.getCurrentBuffer();
             const imageData = ctx.createImageData(SIZE, SIZE);
             
-            for (let i = 0; i < buffer.length; i++) {
-                const material = Math.round(buffer[i]);
+            for (let i = 0; i < buffer.length; i += 4) {  // Skip by 4 (RGBA per cell)
+                const material = Math.round(buffer[i]);  // Check R channel only
                 const color = MATERIAL_COLORS[material] || [255, 0, 255];
-                const baseIdx = i * 4;
-                imageData.data[baseIdx] = color[0];
-                imageData.data[baseIdx + 1] = color[1];
-                imageData.data[baseIdx + 2] = color[2];
-                imageData.data[baseIdx + 3] = 255;
+                imageData.data[i] = color[0];
+                imageData.data[i + 1] = color[1];
+                imageData.data[i + 2] = color[2];
+                imageData.data[i + 3] = 255;
             }
             
             ctx.putImageData(imageData, 0, 0);
