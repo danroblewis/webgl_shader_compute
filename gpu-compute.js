@@ -194,15 +194,19 @@ class GPUCompute {
         const framebuffer = this.#getOrCreateFramebuffer(buffer);
         this.gl.bindFramebuffer(this.gl.FRAMEBUFFER, framebuffer);
         
-        // Allocate temporary RGBA buffer (4 components per pixel)
-        const tempBuffer = new Float32Array(width * height * 4);
-        
-        // Read pixels from GPU
-        this.gl.readPixels(0, 0, width, height, this.gl.RGBA, this.gl.FLOAT, tempBuffer);
-        
-        // Extract red channel to destination (we store data in red channel)
-        for (let i = 0; i < width * height; i++) {
-            dest[i] = tempBuffer[i * 4];
+        // Check if destination expects RGBA data or single-channel
+        if (dest.length === width * height * 4) {
+            // Destination expects full RGBA data, read directly
+            this.gl.readPixels(0, 0, width, height, this.gl.RGBA, this.gl.FLOAT, dest);
+        } else {
+            // Destination expects single-channel data, extract red channel
+            const tempBuffer = new Float32Array(width * height * 4);
+            this.gl.readPixels(0, 0, width, height, this.gl.RGBA, this.gl.FLOAT, tempBuffer);
+            
+            // Extract red channel to destination
+            for (let i = 0; i < width * height; i++) {
+                dest[i] = tempBuffer[i * 4];
+            }
         }
         
         // Unbind framebuffer
