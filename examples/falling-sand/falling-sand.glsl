@@ -195,14 +195,15 @@ void main() {
     
     // EMPTY cell - check what can fall into us
     if (isEmpty(current)) {
-        // Sand falls into empty
+        // Sand falls straight into empty
         if (isSand(above)) {
             gl_FragColor = vec4(SAND, 0.0, 0.0, 1.0);
             return;
         }
-        // Sand falls diagonally
-        bool sandLeft = isSand(aboveLeft) && !isSand(left);
-        bool sandRight = isSand(aboveRight) && !isSand(right);
+        // Sand rolls diagonally - only if there's something blocking on that side
+        // (sand is above-left AND left is occupied = sand rolls over the obstacle)
+        bool sandLeft = isSand(aboveLeft) && !isEmpty(left);
+        bool sandRight = isSand(aboveRight) && !isEmpty(right);
         if (sandLeft && sandRight) {
             if (random(v_texCoord) > 0.5) {
                 gl_FragColor = vec4(SAND, 0.0, 0.0, 1.0);
@@ -220,26 +221,28 @@ void main() {
             return;
         }
         
-        // Water falls into empty
+        // Water falls straight into empty
         if (isWater(above)) {
             gl_FragColor = vec4(WATER, 0.0, 0.0, 1.0);
             return;
         }
-        // Water falls/flows from sides
-        if (isWater(aboveLeft) || isWater(belowLeft) || isWater(left) ||
-            isWater(aboveRight) || isWater(belowRight) || isWater(right)) {
+        // Water flows horizontally - only if it's resting (has something below it)
+        bool waterFlowsLeft = isWater(left) && !isEmpty(belowLeft);
+        bool waterFlowsRight = isWater(right) && !isEmpty(belowRight);
+        if (waterFlowsLeft || waterFlowsRight) {
             gl_FragColor = vec4(WATER, 0.0, 0.0, 1.0);
             return;
         }
         
-        // Oil falls into empty
+        // Oil falls straight into empty
         if (isOil(above)) {
             gl_FragColor = vec4(OIL, 0.0, 0.0, 1.0);
             return;
         }
-        // Oil falls/flows from sides
-        if (isOil(aboveLeft) || isOil(belowLeft) || isOil(left) ||
-            isOil(aboveRight) || isOil(belowRight) || isOil(right)) {
+        // Oil flows horizontally - only if it's resting (has something below it)
+        bool oilFlowsLeft = isOil(left) && !isEmpty(belowLeft);
+        bool oilFlowsRight = isOil(right) && !isEmpty(belowRight);
+        if (oilFlowsLeft || oilFlowsRight) {
             gl_FragColor = vec4(OIL, 0.0, 0.0, 1.0);
             return;
         }
