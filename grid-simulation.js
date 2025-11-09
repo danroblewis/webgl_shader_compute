@@ -34,9 +34,10 @@ class GridSimulation {
         // Compile the user's shader
         this.kernel = this.compute.compileKernel(config.rule);
         
-        // Create ping-pong buffers
-        this.buffer0 = this.compute.createBuffer(this.width, this.height);
-        this.buffer1 = this.compute.createBuffer(this.width, this.height);
+        // Create ping-pong buffers with zero initialization
+        const emptyData = new Float32Array(this.width * this.height * 4); // RGBA zeros
+        this.buffer0 = this.compute.createBuffer(this.width, this.height, emptyData);
+        this.buffer1 = this.compute.createBuffer(this.width, this.height, emptyData);
         
         this.inputBuffer = this.buffer0;
         this.outputBuffer = this.buffer1;
