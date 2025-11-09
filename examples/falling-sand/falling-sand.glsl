@@ -23,133 +23,232 @@ bool isEmpty(float mat) {
     return mat < 0.5;
 }
 
-bool isLiquid(float mat) {
-    return mat > 1.5 && mat < 5.5;
+bool isSand(float mat) {
+    return mat > 0.5 && mat < 1.5;
 }
 
-bool canDisplace(float current, float target) {
-    if (isEmpty(target)) return true;
-    
-    // Sand can displace water and oil
-    if (current > 0.5 && current < 1.5) {
-        return isLiquid(target);
-    }
-    
-    // Water can displace oil (oil floats)
-    if (current > 1.5 && current < 2.5) {
-        return target > 4.5 && target < 5.5; // OIL
-    }
-    
-    return false;
+bool isWater(float mat) {
+    return mat > 1.5 && mat < 2.5;
+}
+
+bool isOil(float mat) {
+    return mat > 4.5 && mat < 5.5;
+}
+
+bool isStatic(float mat) {
+    return (mat > 2.5 && mat < 3.5) || (mat > 3.5 && mat < 4.5);  // Stone or Wood
+}
+
+// Pseudo-random function for horizontal dispersion
+float random(vec2 co) {
+    return fract(sin(dot(co, vec2(12.9898, 78.233))) * 43758.5453);
 }
 
 void main() {
     float current = getCell(vec2(0.0, 0.0));
     
-    // Static materials don't move
-    if (current > 2.5 && current < 4.5) {
+    // Static materials never change
+    if (isStatic(current)) {
         gl_FragColor = vec4(current, 0.0, 0.0, 1.0);
         return;
     }
     
-    // Empty cells stay empty
-    if (isEmpty(current)) {
-        gl_FragColor = vec4(EMPTY, 0.0, 0.0, 1.0);
-        return;
-    }
-    
+    // Get neighbors
+    float above = getCell(vec2(0.0, -1.0));
     float below = getCell(vec2(0.0, 1.0));
-    float belowLeft = getCell(vec2(-1.0, 1.0));
-    float belowRight = getCell(vec2(1.0, 1.0));
     float left = getCell(vec2(-1.0, 0.0));
     float right = getCell(vec2(1.0, 0.0));
+    float aboveLeft = getCell(vec2(-1.0, -1.0));
+    float aboveRight = getCell(vec2(1.0, -1.0));
+    float belowLeft = getCell(vec2(-1.0, 1.0));
+    float belowRight = getCell(vec2(1.0, 1.0));
     
-    // SAND physics
-    if (current > 0.5 && current < 1.5) {
-        if (canDisplace(current, below)) {
+    // SAND physics - falls down, displaces water/oil
+    if (isSand(current)) {
+        // Can we fall straight down?
+        if (isEmpty(below)) {
+            gl_FragColor = vec4(EMPTY, 0.0, 0.0, 1.0);
+            return;
+        }
+        // Can we displace liquid below?
+        if (isWater(below) || isOil(below)) {
             gl_FragColor = vec4(below, 0.0, 0.0, 1.0);
             return;
         }
-        if (canDisplace(current, belowLeft) && isEmpty(left)) {
+        // Can we fall diagonally?
+        bool canLeft = isEmpty(belowLeft) || isWater(belowLeft) || isOil(belowLeft);
+        bool canRight = isEmpty(belowRight) || isWater(belowRight) || isOil(belowRight);
+        
+        if (canLeft && canRight) {
+            // Choose randomly
+            if (random(v_texCoord) > 0.5) {
+                gl_FragColor = vec4(belowLeft, 0.0, 0.0, 1.0);
+            } else {
+                gl_FragColor = vec4(belowRight, 0.0, 0.0, 1.0);
+            }
+            return;
+        }
+        if (canLeft) {
             gl_FragColor = vec4(belowLeft, 0.0, 0.0, 1.0);
             return;
         }
-        if (canDisplace(current, belowRight) && isEmpty(right)) {
+        if (canRight) {
             gl_FragColor = vec4(belowRight, 0.0, 0.0, 1.0);
             return;
         }
-        gl_FragColor = vec4(current, 0.0, 0.0, 1.0);
+        // Can't move, stay as sand
+        gl_FragColor = vec4(SAND, 0.0, 0.0, 1.0);
         return;
     }
     
-    // WATER physics
-    if (current > 1.5 && current < 2.5) {
-        if (canDisplace(current, below)) {
-            gl_FragColor = vec4(below, 0.0, 0.0, 1.0);
+    // WATER physics - falls down, flows horizontally, displaced by sand
+    if (isWater(current)) {
+        // Displaced by sand from above?
+        if (isSand(above) && isEmpty(below)) {
+            gl_FragColor = vec4(SAND, 0.0, 0.0, 1.0);
             return;
         }
-        if (canDisplace(current, belowLeft)) {
-            gl_FragColor = vec4(belowLeft, 0.0, 0.0, 1.0);
+        if (isSand(aboveLeft) && isEmpty(belowLeft) && isEmpty(below)) {
+            gl_FragColor = vec4(SAND, 0.0, 0.0, 1.0);
             return;
         }
-        if (canDisplace(current, belowRight)) {
-            gl_FragColor = vec4(belowRight, 0.0, 0.0, 1.0);
+        if (isSand(aboveRight) && isEmpty(belowRight) && isEmpty(below)) {
+            gl_FragColor = vec4(SAND, 0.0, 0.0, 1.0);
             return;
         }
-        // Spread horizontally
+        // Can we fall?
+        if (isEmpty(below)) {
+            gl_FragColor = vec4(EMPTY, 0.0, 0.0, 1.0);
+            return;
+        }
+        // Can we fall diagonally?
+        if (isEmpty(belowLeft) && isEmpty(belowRight)) {
+            gl_FragColor = vec4(EMPTY, 0.0, 0.0, 1.0);
+            return;
+        }
+        if (isEmpty(belowLeft)) {
+            gl_FragColor = vec4(EMPTY, 0.0, 0.0, 1.0);
+            return;
+        }
+        if (isEmpty(belowRight)) {
+            gl_FragColor = vec4(EMPTY, 0.0, 0.0, 1.0);
+            return;
+        }
+        // Can we flow horizontally?
         if (isEmpty(left) && isEmpty(right)) {
-            float rand = fract(sin(dot(v_texCoord, vec2(12.9898, 78.233))) * 43758.5453);
-            if (rand > 0.5) {
-                gl_FragColor = vec4(left, 0.0, 0.0, 1.0);
+            if (random(v_texCoord) > 0.5) {
+                gl_FragColor = vec4(EMPTY, 0.0, 0.0, 1.0);
             } else {
-                gl_FragColor = vec4(right, 0.0, 0.0, 1.0);
+                gl_FragColor = vec4(WATER, 0.0, 0.0, 1.0);
             }
             return;
         }
         if (isEmpty(left)) {
-            gl_FragColor = vec4(left, 0.0, 0.0, 1.0);
+            gl_FragColor = vec4(EMPTY, 0.0, 0.0, 1.0);
             return;
         }
         if (isEmpty(right)) {
-            gl_FragColor = vec4(right, 0.0, 0.0, 1.0);
+            gl_FragColor = vec4(EMPTY, 0.0, 0.0, 1.0);
             return;
         }
-        gl_FragColor = vec4(current, 0.0, 0.0, 1.0);
+        // Can't move, stay as water
+        gl_FragColor = vec4(WATER, 0.0, 0.0, 1.0);
         return;
     }
     
-    // OIL physics (similar to water but floats)
-    if (current > 4.5 && current < 5.5) {
+    // OIL physics - similar to water but floats on water, displaced by sand
+    if (isOil(current)) {
+        // Displaced by sand from above?
+        if (isSand(above) && isEmpty(below)) {
+            gl_FragColor = vec4(SAND, 0.0, 0.0, 1.0);
+            return;
+        }
+        // Displaced by water from above? (oil floats)
+        if (isWater(above) && isEmpty(below)) {
+            gl_FragColor = vec4(WATER, 0.0, 0.0, 1.0);
+            return;
+        }
+        // Can we fall into empty?
         if (isEmpty(below)) {
-            gl_FragColor = vec4(below, 0.0, 0.0, 1.0);
+            gl_FragColor = vec4(EMPTY, 0.0, 0.0, 1.0);
             return;
         }
-        if (isEmpty(belowLeft)) {
-            gl_FragColor = vec4(belowLeft, 0.0, 0.0, 1.0);
+        // Can we fall diagonally?
+        if (isEmpty(belowLeft) || isEmpty(belowRight)) {
+            gl_FragColor = vec4(EMPTY, 0.0, 0.0, 1.0);
             return;
         }
-        if (isEmpty(belowRight)) {
-            gl_FragColor = vec4(belowRight, 0.0, 0.0, 1.0);
+        // Can we float on water?
+        if (isWater(below)) {
+            gl_FragColor = vec4(WATER, 0.0, 0.0, 1.0);
             return;
         }
-        // Float on water
-        if (below > 1.5 && below < 2.5) {
-            gl_FragColor = vec4(below, 0.0, 0.0, 1.0);
+        // Can we flow horizontally?
+        if (isEmpty(left) || isEmpty(right)) {
+            gl_FragColor = vec4(EMPTY, 0.0, 0.0, 1.0);
             return;
         }
-        // Spread horizontally
-        if (isEmpty(left)) {
-            gl_FragColor = vec4(left, 0.0, 0.0, 1.0);
-            return;
-        }
-        if (isEmpty(right)) {
-            gl_FragColor = vec4(right, 0.0, 0.0, 1.0);
-            return;
-        }
-        gl_FragColor = vec4(current, 0.0, 0.0, 1.0);
+        // Can't move, stay as oil
+        gl_FragColor = vec4(OIL, 0.0, 0.0, 1.0);
         return;
     }
     
+    // EMPTY cell - check what can fall into us
+    if (isEmpty(current)) {
+        // Sand falls into empty
+        if (isSand(above)) {
+            gl_FragColor = vec4(SAND, 0.0, 0.0, 1.0);
+            return;
+        }
+        // Sand falls diagonally
+        bool sandLeft = isSand(aboveLeft) && !isSand(left);
+        bool sandRight = isSand(aboveRight) && !isSand(right);
+        if (sandLeft && sandRight) {
+            if (random(v_texCoord) > 0.5) {
+                gl_FragColor = vec4(SAND, 0.0, 0.0, 1.0);
+            } else {
+                gl_FragColor = vec4(EMPTY, 0.0, 0.0, 1.0);
+            }
+            return;
+        }
+        if (sandLeft) {
+            gl_FragColor = vec4(SAND, 0.0, 0.0, 1.0);
+            return;
+        }
+        if (sandRight) {
+            gl_FragColor = vec4(SAND, 0.0, 0.0, 1.0);
+            return;
+        }
+        
+        // Water falls into empty
+        if (isWater(above)) {
+            gl_FragColor = vec4(WATER, 0.0, 0.0, 1.0);
+            return;
+        }
+        // Water falls/flows from sides
+        if (isWater(aboveLeft) || isWater(belowLeft) || isWater(left) ||
+            isWater(aboveRight) || isWater(belowRight) || isWater(right)) {
+            gl_FragColor = vec4(WATER, 0.0, 0.0, 1.0);
+            return;
+        }
+        
+        // Oil falls into empty
+        if (isOil(above)) {
+            gl_FragColor = vec4(OIL, 0.0, 0.0, 1.0);
+            return;
+        }
+        // Oil falls/flows from sides
+        if (isOil(aboveLeft) || isOil(belowLeft) || isOil(left) ||
+            isOil(aboveRight) || isOil(belowRight) || isOil(right)) {
+            gl_FragColor = vec4(OIL, 0.0, 0.0, 1.0);
+            return;
+        }
+        
+        // Stay empty
+        gl_FragColor = vec4(EMPTY, 0.0, 0.0, 1.0);
+        return;
+    }
+    
+    // Default: keep current state
     gl_FragColor = vec4(current, 0.0, 0.0, 1.0);
 }
-
