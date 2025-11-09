@@ -134,24 +134,22 @@ void main() {
             gl_FragColor = vec4(EMPTY, 0.0, 0.0, 1.0);
             return;
         }
-        // Can we flow horizontally? (only if we're resting - can't fall)
-        if (!isEmpty(below) && !isEmpty(belowLeft) && !isEmpty(belowRight)) {
-            if (isEmpty(left) && isEmpty(right)) {
-                if (random(v_texCoord) > 0.5) {
-                    gl_FragColor = vec4(EMPTY, 0.0, 0.0, 1.0);
-                } else {
-                    gl_FragColor = vec4(WATER, 0.0, 0.0, 1.0);
-                }
-                return;
-            }
-            if (isEmpty(left)) {
+        // Can we flow horizontally? (we're already blocked from falling if we reach here)
+        if (isEmpty(left) && isEmpty(right)) {
+            if (random(v_texCoord) > 0.5) {
                 gl_FragColor = vec4(EMPTY, 0.0, 0.0, 1.0);
-                return;
+            } else {
+                gl_FragColor = vec4(WATER, 0.0, 0.0, 1.0);
             }
-            if (isEmpty(right)) {
-                gl_FragColor = vec4(EMPTY, 0.0, 0.0, 1.0);
-                return;
-            }
+            return;
+        }
+        if (isEmpty(left)) {
+            gl_FragColor = vec4(EMPTY, 0.0, 0.0, 1.0);
+            return;
+        }
+        if (isEmpty(right)) {
+            gl_FragColor = vec4(EMPTY, 0.0, 0.0, 1.0);
+            return;
         }
         // Can't move, stay as water
         gl_FragColor = vec4(WATER, 0.0, 0.0, 1.0);
@@ -185,12 +183,10 @@ void main() {
             gl_FragColor = vec4(WATER, 0.0, 0.0, 1.0);
             return;
         }
-        // Can we flow horizontally? (only if we're resting - can't fall)
-        if (!isEmpty(below) && !isEmpty(belowLeft) && !isEmpty(belowRight)) {
-            if (isEmpty(left) || isEmpty(right)) {
-                gl_FragColor = vec4(EMPTY, 0.0, 0.0, 1.0);
-                return;
-            }
+        // Can we flow horizontally? (we're already blocked from falling if we reach here)
+        if (isEmpty(left) || isEmpty(right)) {
+            gl_FragColor = vec4(EMPTY, 0.0, 0.0, 1.0);
+            return;
         }
         // Can't move, stay as oil
         gl_FragColor = vec4(OIL, 0.0, 0.0, 1.0);
