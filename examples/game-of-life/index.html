@@ -131,7 +131,7 @@
 
         // Render simulation to canvas
         function render() {
-            const buffer = sim.getBuffer();
+            const buffer = sim.getCurrentBuffer();
             
             const imageData = ctx.createImageData(SIZE, SIZE);
             for (let i = 0; i < buffer.length; i++) {
@@ -202,7 +202,7 @@
 
         // UI helper: Randomize cells
         function randomize(density = 0.3) {
-            const buffer = sim.getBuffer();
+            const buffer = sim.getCurrentBuffer();
             for (let i = 0; i < buffer.length; i++) {
                 buffer[i] = Math.random() < density ? 1 : 0;
             }

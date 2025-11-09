@@ -5,7 +5,7 @@
  * Rules: B3/S23 (Birth with 3 neighbors, Survival with 2 or 3 neighbors)
  */
 
-import { SimulationEngine } from '../../simulation-engine.js';
+import { GridSimulation } from '../../grid-simulation.js';
 
 const GAME_OF_LIFE_SHADER = `
     precision highp float;
@@ -50,12 +50,12 @@ const GAME_OF_LIFE_SHADER = `
     }
 `;
 
-export class GameOfLifeSimulation extends SimulationEngine {
+export class GameOfLifeSimulation extends GridSimulation {
     constructor(width, height, options = {}) {
         super({
             width,
             height,
-            shader: GAME_OF_LIFE_SHADER,
+            rule: GAME_OF_LIFE_SHADER,
             initialState: options.initialState || 'empty',
             canvas: options.canvas
         });
@@ -67,13 +67,6 @@ export class GameOfLifeSimulation extends SimulationEngine {
     toggleCell(x, y) {
         const current = this.getCellState(x, y);
         this.setCell(x, y, current > 0.5 ? 0 : 1);
-    }
-    
-    /**
-     * Count alive cells
-     */
-    countAlive() {
-        return this.sim.countAlive();
     }
 }
 

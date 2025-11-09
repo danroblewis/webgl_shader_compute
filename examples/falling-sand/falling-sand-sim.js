@@ -3,7 +3,7 @@
  * Physics simulation with multiple particle types (sand, water, oil, stone, wood)
  */
 
-import { SimulationEngine } from '../../simulation-engine.js';
+import { GridSimulation } from '../../grid-simulation.js';
 
 // Material types
 export const MATERIALS = {
@@ -183,12 +183,12 @@ const FALLING_SAND_SHADER = `
     }
 `;
 
-export class FallingSandSimulation extends SimulationEngine {
+export class FallingSandSimulation extends GridSimulation {
     constructor(width, height, options = {}) {
         super({
             width,
             height,
-            shader: FALLING_SAND_SHADER,
+            rule: FALLING_SAND_SHADER,
             initialState: options.initialState || 'empty',
             canvas: options.canvas
         });
@@ -198,7 +198,7 @@ export class FallingSandSimulation extends SimulationEngine {
      * Place material in a circular brush pattern
      */
     placeMaterial(x, y, material, brushSize = 1) {
-        const buffer = this.getBuffer();
+        const buffer = this.getCurrentBuffer();
         
         for (let dy = -brushSize; dy <= brushSize; dy++) {
             for (let dx = -brushSize; dx <= brushSize; dx++) {

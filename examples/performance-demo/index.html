@@ -168,7 +168,7 @@ sim.syncBuffer(buffer);</code></pre>
         // Efficient render using buffer reference
         function render() {
             // Get buffer once - this is the only download!
-            const buffer = sim.getBuffer();
+            const buffer = sim.getCurrentBuffer();
             downloadCount++;
             
             const imageData = ctx.createImageData(SIZE, SIZE);
@@ -220,7 +220,7 @@ sim.syncBuffer(buffer);</code></pre>
 
         // UI helper: Randomize cells
         function randomize(density = 0.3) {
-            const buffer = sim.getBuffer();
+            const buffer = sim.getCurrentBuffer();
             for (let i = 0; i < buffer.length; i++) {
                 buffer[i] = Math.random() < density ? 1 : 0;
             }

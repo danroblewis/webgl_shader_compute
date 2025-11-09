@@ -218,7 +218,7 @@
 
         // Render simulation to canvas
         function render() {
-            const buffer = sim.getBuffer();
+            const buffer = sim.getCurrentBuffer();
             const imageData = ctx.createImageData(SIZE, SIZE);
             
             for (let i = 0; i < buffer.length; i++) {
