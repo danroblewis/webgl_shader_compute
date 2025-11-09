@@ -140,12 +140,15 @@
             const buffer = sim.getCurrentBuffer();
             
             const imageData = ctx.createImageData(SIZE, SIZE);
-            for (let i = 0; i < buffer.length; i += 4) {  // Skip by 4 (RGBA per cell)
-                const alive = buffer[i] > 0.5;  // Check R channel
-                imageData.data[i] = alive ? 255 : 0;
-                imageData.data[i + 1] = alive ? 255 : 0;
-                imageData.data[i + 2] = alive ? 255 : 0;
-                imageData.data[i + 3] = 255;
+            // Iterate over each cell (not each float in buffer)
+            for (let cellIdx = 0; cellIdx < SIZE * SIZE; cellIdx++) {
+                const bufferIdx = cellIdx * 4;  // Each cell is 4 floats (RGBA)
+                const alive = buffer[bufferIdx] > 0.5;  // Check R channel
+                const imageIdx = cellIdx * 4;  // Each pixel is 4 bytes (RGBA)
+                imageData.data[imageIdx] = alive ? 255 : 0;
+                imageData.data[imageIdx + 1] = alive ? 255 : 0;
+                imageData.data[imageIdx + 2] = alive ? 255 : 0;
+                imageData.data[imageIdx + 3] = 255;
             }
             
             ctx.putImageData(imageData, 0, 0);
