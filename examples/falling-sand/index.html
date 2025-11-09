@@ -201,8 +201,13 @@
         const canvas = document.getElementById('canvas');
         const ctx = canvas.getContext('2d');
 
-        // Create simulation
-        const sim = new FallingSandSimulation(SIZE, SIZE);
+        // Create simulation (async)
+        let sim;
+        FallingSandSimulation.create(SIZE, SIZE).then(instance => {
+            sim = instance;
+            render();
+            requestAnimationFrame(animate);
+        });
 
         // UI state
         let currentMaterial = MATERIALS.SAND;
@@ -218,6 +223,7 @@
 
         // Render simulation to canvas
         function render() {
+            if (!sim) return;
             const buffer = sim.getCurrentBuffer();
             const imageData = ctx.createImageData(SIZE, SIZE);
             
@@ -237,6 +243,11 @@
 
         // Animation loop
         function animate(currentTime) {
+            if (!sim) {
+                requestAnimationFrame(animate);
+                return;
+            }
+            
             const deltaTime = currentTime - lastTime;
 
             if (!isPaused) {
@@ -391,9 +402,6 @@
             lastY = -1;
         });
 
-        // Start simulation
-        render();
-        requestAnimationFrame(animate);
     </script>
 </body>
 </html>

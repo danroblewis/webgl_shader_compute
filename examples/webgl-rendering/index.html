@@ -91,12 +91,17 @@ gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);</code></pre>
         const canvas = document.getElementById('canvas');
         const gl = canvas.getContext('webgl');
 
-        // Create simulation
-        const sim = new GameOfLifeSimulation(SIZE, SIZE, { initialState: 'random' });
-
         // Create custom rendering pipeline
         const renderProgram = createRenderProgram(gl);
         const quadBuffer = createQuadBuffer(gl);
+
+        // Create simulation (async)
+        let sim;
+        GameOfLifeSimulation.create(SIZE, SIZE, { initialState: 'random' }).then(instance => {
+            sim = instance;
+            render();
+            requestAnimationFrame(animate);
+        });
 
         function createRenderProgram(gl) {
             const vertexShader = gl.createShader(gl.VERTEX_SHADER);
@@ -155,6 +160,7 @@ gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);</code></pre>
         }
 
         function render() {
+            if (!sim) return;
             // Get simulation texture (no CPU download!)
             const texture = sim.getTexture();
             
@@ -175,14 +181,14 @@ gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);</code></pre>
         }
 
         function animate() {
+            if (!sim) {
+                requestAnimationFrame(animate);
+                return;
+            }
             sim.step();
             render();
             requestAnimationFrame(animate);
         }
-
-        // Start simulation
-        render();
-        requestAnimationFrame(animate);
     </script>
 </body>
 </html>

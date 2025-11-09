@@ -157,8 +157,13 @@ sim.syncBuffer(buffer);</code></pre>
         const canvas = document.getElementById('canvas');
         const ctx = canvas.getContext('2d');
 
-        // Create simulation
-        const sim = new GameOfLifeSimulation(SIZE, SIZE, { initialState: 'random' });
+        // Create simulation (async)
+        let sim;
+        GameOfLifeSimulation.create(SIZE, SIZE, { initialState: 'random' }).then(instance => {
+            sim = instance;
+            render();
+            updateStats();
+        });
 
         let downloadCount = 0;
         let stepCount = 0;
@@ -167,6 +172,7 @@ sim.syncBuffer(buffer);</code></pre>
 
         // Efficient render using buffer reference
         function render() {
+            if (!sim) return;
             // Get buffer once - this is the only download!
             const buffer = sim.getCurrentBuffer();
             downloadCount++;
@@ -186,6 +192,7 @@ sim.syncBuffer(buffer);</code></pre>
         }
 
         function updateStats() {
+            if (!sim) return;
             document.getElementById('downloads').textContent = downloadCount;
             document.getElementById('steps').textContent = stepCount;
         }

@@ -119,8 +119,13 @@
         const canvas = document.getElementById('canvas');
         const ctx = canvas.getContext('2d');
 
-        // Create Game of Life simulation
-        const sim = new GameOfLifeSimulation(SIZE, SIZE);
+        // Create Game of Life simulation (async)
+        let sim;
+        GameOfLifeSimulation.create(SIZE, SIZE).then(instance => {
+            sim = instance;
+            render();
+            updateStats();
+        });
 
         // Animation state
         let playing = false;
@@ -131,6 +136,7 @@
 
         // Render simulation to canvas
         function render() {
+            if (!sim) return;
             const buffer = sim.getCurrentBuffer();
             
             const imageData = ctx.createImageData(SIZE, SIZE);
@@ -149,6 +155,7 @@
 
         // Update stats display
         function updateStats() {
+            if (!sim) return;
             document.getElementById('generation').textContent = sim.generation;
             document.getElementById('alive').textContent = sim.countAlive();
         }
