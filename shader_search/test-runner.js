@@ -138,6 +138,34 @@ function gridToString(grid) {
     ).join('\n');
 }
 
+// Render grid as HTML divs with colors
+function gridToHTML(grid) {
+    const colors = {
+        [CellType.EMPTY]: '#1e1e1e',
+        [CellType.SAND]: '#f4d03f',
+        [CellType.STONE]: '#808080'
+    };
+    
+    const cellSize = 20; // pixels
+    const width = grid[0]?.length || 0;
+    const height = grid.length;
+    
+    let html = `<div style="display: inline-block; border: 1px solid #3e3e42;">`;
+    
+    for (let y = 0; y < height; y++) {
+        html += `<div style="display: flex; height: ${cellSize}px;">`;
+        for (let x = 0; x < width; x++) {
+            const cell = grid[y][x];
+            const color = colors[cell] || '#ff00ff';
+            html += `<div style="width: ${cellSize}px; height: ${cellSize}px; background-color: ${color}; border: 1px solid #00000033;"></div>`;
+        }
+        html += `</div>`;
+    }
+    
+    html += `</div>`;
+    return html;
+}
+
 // Helper to load grid into simulation
 function loadGridIntoSim(sim, grid) {
     // Grid is in reading order (top to bottom), need to convert to y-coordinates
@@ -189,7 +217,7 @@ class TestRunner {
             currentFrame: 0,
             isPlaying: false,
             intervalId: null,
-            speed: 500 // ms per frame
+            speed: 100 // ms per frame
         };
     }
     
@@ -325,9 +353,9 @@ class TestRunner {
                 <label style="margin-left: auto; color: #858585;">
                     Speed: 
                     <select id="animSpeed" style="background: #2d2d30; color: #d4d4d4; border: 1px solid #3e3e42; padding: 2px;">
-                        <option value="5000">Slow</option>
-                        <option value="250" selected>Normal</option>
-                        <option value="100">Fast</option>
+                        <option value="500">Slow</option>
+                        <option value="250">Normal</option>
+                        <option value="100" selected>Fast</option>
                         <option value="50">Very Fast</option>
                     </select>
                 </label>
@@ -369,24 +397,21 @@ class TestRunner {
         const frame = this.animationState.frames[this.animationState.currentFrame];
         if (!frame) return;
         
-        let output = `${frame.msg}\n\n`;
+        const gridDisplayEl = document.getElementById('gridDisplay');
+        
+        let html = `<div style="margin-bottom: 15px; color: #d4d4d4;">${frame.msg}</div>`;
         
         if (frame.expected) {
             // Show actual and expected side-by-side
-            const actualLines = gridToString(frame.actual).split('\n');
-            const expectedLines = gridToString(frame.expected).split('\n');
-            
-            output += `    Actual:          Expected:\n`;
-            for (let i = 0; i < Math.max(actualLines.length, expectedLines.length); i++) {
-                const actualLine = actualLines[i] || '';
-                const expectedLine = expectedLines[i] || '';
-                output += `    ${actualLine.padEnd(15)}  ${expectedLine}\n`;
-            }
+            html += `<div style="display: flex; gap: 30px; justify-content: center;">`;
+            html += `<div>${gridToHTML(frame.actual)}</div>`;
+            html += `<div>${gridToHTML(frame.expected)}</div>`;
+            html += `</div>`;
         } else {
-            output += gridToString(frame.actual);
+            html += `<div style="display: flex; justify-content: center;">${gridToHTML(frame.actual)}</div>`;
         }
         
-        document.getElementById('gridDisplay').textContent = output;
+        gridDisplayEl.innerHTML = html;
         document.getElementById('animFrameInfo').textContent = 
             `Frame ${this.animationState.currentFrame + 1} / ${this.animationState.frames.length}`;
         
