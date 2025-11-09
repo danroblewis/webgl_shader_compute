@@ -203,13 +203,34 @@ require(['vs/editor/editor.main'], function () {
         tabSize: 4
     });
 
-    // Auto-recompile with 0.5-second debounce
-    let recompileTimeout = null;
+    // Auto-recompile system with immediate response and queueing
+    let isCompiling = false;
+    let recompileRequested = false;
+    
     const scheduleRecompile = () => {
-        clearTimeout(recompileTimeout);
-        recompileTimeout = setTimeout(() => {
-            compileAndRun();
-        }, 500);
+        recompileRequested = true;
+        
+        // If not currently compiling, start immediately
+        if (!isCompiling) {
+            executeRecompile();
+        }
+        // Otherwise, it will run when current compile finishes
+    };
+    
+    const executeRecompile = async () => {
+        if (isCompiling) return;
+        
+        isCompiling = true;
+        recompileRequested = false;
+        
+        await compileAndRun();
+        
+        isCompiling = false;
+        
+        // If another compile was requested while we were compiling, do it now
+        if (recompileRequested) {
+            executeRecompile();
+        }
     };
 
     glslEditor.onDidChangeModelContent(() => {
@@ -234,7 +255,7 @@ require(['vs/editor/editor.main'], function () {
     }, 5000);
 
     // Initial compile
-    compileAndRun();
+    executeRecompile();
     
     // Load and render test cases
     renderTestCases();
