@@ -97,6 +97,10 @@ function loadTestCase(testCaseId) {
     buffer.set(cellData);
     sim.syncBuffer(buffer);
     
+    // Start playing
+    isPaused = false;
+    document.getElementById('playToggle').checked = true;
+    
     // Render
     render();
     
