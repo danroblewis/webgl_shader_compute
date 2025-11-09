@@ -5,14 +5,52 @@ import { GPUCompute } from '../gpu-compute.js';
 const defaultJS = await fetch('./template.js').then(r => r.text());
 const defaultGLSL = await fetch('./template.glsl').then(r => r.text());
 
+// LocalStorage keys
+const STORAGE_KEYS = {
+    JS_CODE: 'playground_js_code',
+    GLSL_CODE: 'playground_glsl_code',
+    BRUSH_SIZE: 'playground_brush_size',
+    SPEED: 'playground_speed',
+    IS_PLAYING: 'playground_is_playing'
+};
+
+// Load saved state from localStorage
+function loadState() {
+    return {
+        jsCode: localStorage.getItem(STORAGE_KEYS.JS_CODE) || defaultJS,
+        glslCode: localStorage.getItem(STORAGE_KEYS.GLSL_CODE) || defaultGLSL,
+        brushSize: parseInt(localStorage.getItem(STORAGE_KEYS.BRUSH_SIZE)) || 3,
+        speed: parseInt(localStorage.getItem(STORAGE_KEYS.SPEED)) || 1,
+        isPlaying: localStorage.getItem(STORAGE_KEYS.IS_PLAYING) === 'true'
+    };
+}
+
+// Save state to localStorage
+function saveState() {
+    if (jsEditor && glslEditor) {
+        localStorage.setItem(STORAGE_KEYS.JS_CODE, jsEditor.getValue());
+        localStorage.setItem(STORAGE_KEYS.GLSL_CODE, glslEditor.getValue());
+    }
+    localStorage.setItem(STORAGE_KEYS.BRUSH_SIZE, brushSize.toString());
+    localStorage.setItem(STORAGE_KEYS.SPEED, stepsPerFrame.toString());
+    localStorage.setItem(STORAGE_KEYS.IS_PLAYING, (!isPaused).toString());
+}
+
+// Clear saved state
+function clearState() {
+    Object.values(STORAGE_KEYS).forEach(key => localStorage.removeItem(key));
+}
+
 // Monaco Editor setup
 let jsEditor, glslEditor;
 
 require.config({ paths: { vs: 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.45.0/min/vs' } });
 
 require(['vs/editor/editor.main'], function () {
+    const savedState = loadState();
+    
     glslEditor = monaco.editor.create(document.getElementById('glslEditor'), {
-        value: defaultGLSL,
+        value: savedState.glslCode,
         language: 'cpp', // Use C++ for GLSL syntax highlighting
         theme: 'vs-dark',
         automaticLayout: true,
@@ -25,7 +63,7 @@ require(['vs/editor/editor.main'], function () {
     });
 
     jsEditor = monaco.editor.create(document.getElementById('jsEditor'), {
-        value: defaultJS,
+        value: savedState.jsCode,
         language: 'javascript',
         theme: 'vs-dark',
         automaticLayout: true,
@@ -53,6 +91,19 @@ require(['vs/editor/editor.main'], function () {
     jsEditor.onDidChangeModelContent(() => {
         scheduleRecompile();
     });
+
+    // Initialize controls with saved state
+    brushSize = savedState.brushSize;
+    stepsPerFrame = savedState.speed;
+    document.getElementById('brushSlider').value = brushSize;
+    document.getElementById('brushValue').textContent = brushSize;
+    document.getElementById('speedSlider').value = stepsPerFrame;
+    document.getElementById('speedValue').textContent = stepsPerFrame;
+
+    // Auto-save state every 5 seconds
+    setInterval(() => {
+        saveState();
+    }, 5000);
 
     // Initial compile
     compileAndRun();
@@ -148,12 +199,15 @@ async function compileAndRun() {
                 console.warn('Could not restore buffer:', e);
             }
         } else {
-            // First load: randomize and start playing
+            // First load: randomize
             if (typeof sim.randomize === 'function') {
                 sim.randomize();
             }
-            isPaused = false;
-            document.getElementById('playToggle').checked = true;
+            // Check if we have a saved play state, otherwise default to playing
+            const savedState = loadState();
+            const shouldPlay = savedBuffer === null ? true : savedState.isPlaying;
+            isPaused = !shouldPlay;
+            document.getElementById('playToggle').checked = shouldPlay;
         }
         
         // Setup materials
@@ -348,6 +402,10 @@ document.getElementById('randomizeBtn').addEventListener('click', () => {
 });
 
 document.getElementById('resetBtn').addEventListener('click', () => {
+    if (!confirm('Reset to default template? This will clear your current code and saved state.')) {
+        return;
+    }
+    
     if (jsEditor && glslEditor) {
         jsEditor.setValue(defaultJS);
         glslEditor.setValue(defaultGLSL);
@@ -361,5 +419,6 @@ document.getElementById('resetBtn').addEventListener('click', () => {
     document.getElementById('generation').textContent = '0';
     document.getElementById('fps').textContent = '-';
     clearError();
+    clearState(); // Clear saved state
 });
 
