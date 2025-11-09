@@ -7,11 +7,19 @@
 
 import { GridSimulation } from '../../grid-simulation.js';
 
-// Cell type enumeration
+// Cell type enumeration - stores RGBA vec4 values directly
 const CellType = {
-    EMPTY: 0,
-    ALIVE: 1
+    EMPTY: new Float32Array([0, 0, 0, 0]),
+    ALIVE: new Float32Array([1, 0, 0, 0])
 };
+
+// Create reverse lookup map: RGBA → CellType name
+const RGBAToName = new Map();
+for (const [name, rgba] of Object.entries(CellType)) {
+    // Use first component as key (sufficient for Game of Life's binary state)
+    const key = rgba[0];
+    RGBAToName.set(key, CellType[name]);
+}
 
 export class GameOfLifeSimulation extends GridSimulation {
     /**
@@ -48,28 +56,24 @@ export class GameOfLifeSimulation extends GridSimulation {
     // ============================================
     
     /**
-     * Convert cell type enum to RGBA vec4
-     * @param {number} cellType - CellType enum value
-     * @returns {Array<number>} RGBA vec4 [r, g, b, a]
+     * Convert cell type to RGBA vec4 (direct lookup)
+     * @param {Float32Array} cellType - CellType enum value (already RGBA)
+     * @returns {Float32Array} RGBA vec4 [r, g, b, a]
      */
     #cellTypeToRGBA(cellType) {
-        switch (cellType) {
-            case CellType.EMPTY:
-                return [0, 0, 0, 0];
-            case CellType.ALIVE:
-                return [1, 0, 0, 0];
-            default:
-                throw new Error(`Invalid cell type: ${cellType}`);
-        }
+        // Cell types are already RGBA arrays, just return them
+        return cellType;
     }
     
     /**
-     * Convert RGBA vec4 to cell type enum
-     * @param {Array<number>} rgba - RGBA vec4 [r, g, b, a]
-     * @returns {number} CellType enum value
+     * Convert RGBA vec4 to cell type enum (reverse lookup)
+     * @param {Array<number>|Float32Array} rgba - RGBA vec4 [r, g, b, a]
+     * @returns {Float32Array} CellType enum value
      */
     #rgbaToCellType(rgba) {
-        return rgba[0] > 0.5 ? CellType.ALIVE : CellType.EMPTY;
+        // Use R channel as lookup key (binary: 0 or 1)
+        const key = rgba[0] > 0.5 ? 1 : 0;
+        return RGBAToName.get(key) || CellType.EMPTY;
     }
     
     // ============================================
@@ -158,7 +162,8 @@ export class GameOfLifeSimulation extends GridSimulation {
      * @returns {boolean} True if cell is alive
      */
     isAlive(x, y) {
-        return this.getCellState(x, y) === CellType.ALIVE;
+        const state = this.getCellState(x, y);
+        return state[0] > 0.5;  // Check R channel
     }
     
     /**
@@ -168,6 +173,6 @@ export class GameOfLifeSimulation extends GridSimulation {
      */
     toggleCell(x, y) {
         const current = this.getCellState(x, y);
-        this.setCell(x, y, current === CellType.ALIVE ? CellType.EMPTY : CellType.ALIVE);
+        this.setCell(x, y, current[0] > 0.5 ? CellType.EMPTY : CellType.ALIVE);
     }
 }
