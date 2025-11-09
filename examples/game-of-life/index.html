@@ -214,26 +214,29 @@
 
         // UI helper: Add glider pattern
         function addGlider(x, y) {
-            sim.setCell(x + 1, y, sim.ALIVE);
-            sim.setCell(x + 2, y + 1, sim.ALIVE);
-            sim.setCell(x, y + 2, sim.ALIVE);
-            sim.setCell(x + 1, y + 2, sim.ALIVE);
-            sim.setCell(x + 2, y + 2, sim.ALIVE);
+            const { ALIVE } = GameOfLifeSimulation.CellType;
+            sim.setCell(x + 1, y, ALIVE);
+            sim.setCell(x + 2, y + 1, ALIVE);
+            sim.setCell(x, y + 2, ALIVE);
+            sim.setCell(x + 1, y + 2, ALIVE);
+            sim.setCell(x + 2, y + 2, ALIVE);
         }
 
         // UI helper: Add blinker pattern
         function addBlinker(x, y) {
-            sim.setCell(x, y, sim.ALIVE);
-            sim.setCell(x + 1, y, sim.ALIVE);
-            sim.setCell(x + 2, y, sim.ALIVE);
+            const { ALIVE } = GameOfLifeSimulation.CellType;
+            sim.setCell(x, y, ALIVE);
+            sim.setCell(x + 1, y, ALIVE);
+            sim.setCell(x + 2, y, ALIVE);
         }
 
         // UI helper: Add block pattern
         function addBlock(x, y) {
-            sim.setCell(x, y, sim.ALIVE);
-            sim.setCell(x + 1, y, sim.ALIVE);
-            sim.setCell(x, y + 1, sim.ALIVE);
-            sim.setCell(x + 1, y + 1, sim.ALIVE);
+            const { ALIVE } = GameOfLifeSimulation.CellType;
+            sim.setCell(x, y, ALIVE);
+            sim.setCell(x + 1, y, ALIVE);
+            sim.setCell(x, y + 1, ALIVE);
+            sim.setCell(x + 1, y + 1, ALIVE);
         }
 
         document.getElementById('randomBtn').addEventListener('click', () => {
@@ -279,7 +282,9 @@
             const y = Math.floor((e.clientY - rect.top) / CELL_SIZE);
             
             if (x >= 0 && x < SIZE && y >= 0 && y < SIZE) {
-                sim.toggleCell(x, y);
+                const { ALIVE, EMPTY } = GameOfLifeSimulation.CellType;
+                const current = sim.getCellState(x, y);
+                sim.setCell(x, y, current[0] > 0.5 ? EMPTY : ALIVE);
                 render();
                 updateStats();
             }

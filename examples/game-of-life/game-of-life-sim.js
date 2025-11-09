@@ -43,7 +43,8 @@ export class GameOfLifeSimulation extends GridSimulation {
     
     // ============================================
     // No overrides needed - CellType values are already RGBA!
-    // Users call: sim.setCell(x, y, sim.ALIVE)
+    // Users access via: GameOfLifeSimulation.CellType.ALIVE
+    // Example: sim.setCell(x, y, GameOfLifeSimulation.CellType.ALIVE)
     // Base class handles everything.
     // ============================================
     
@@ -53,8 +54,9 @@ export class GameOfLifeSimulation extends GridSimulation {
      */
     randomize(probability = 0.5) {
         const buffer = this.getCurrentBuffer();
+        const { ALIVE, EMPTY } = this.constructor.CellType;
         for (let i = 0; i < this.width * this.height; i++) {
-            const cellType = Math.random() < probability ? this.ALIVE : this.EMPTY;
+            const cellType = Math.random() < probability ? ALIVE : EMPTY;
             buffer.set(cellType, i * 4);
         }
         this.syncBuffer(buffer);
