@@ -37,9 +37,9 @@ class TestSimulation extends GridSimulation {
         const buffer = this.getCurrentBuffer();
         
         // Return grid in reading order (top to bottom)
-        // WebGL texture data is bottom-to-top, so we reverse it
+        // Don't reverse - read directly in order
         const grid = [];
-        for (let y = this.height - 1; y >= 0; y--) {
+        for (let y = 0; y < this.height; y++) {
             const row = [];
             for (let x = 0; x < this.width; x++) {
                 const idx = (y * this.width + x) * 4;
@@ -96,13 +96,13 @@ function gridToHTML(grid) {
 
 // Helper to load grid into simulation
 function loadGridIntoSim(sim, grid) {
-    // Grid is in reading order (top to bottom), need to convert to y-coordinates
+    // Grid is in reading order (top to bottom)
+    // DON'T flip - just load directly
+    // First line in file (y=0) goes to simY=0
     for (let y = 0; y < grid.length; y++) {
         for (let x = 0; x < grid[y].length; x++) {
             const value = grid[y][x];
-            // Convert reading order to simulation coordinates (flip y)
-            const simY = grid.length - 1 - y;
-            sim.setCell(x, simY, value);
+            sim.setCell(x, y, value);
         }
     }
 }
@@ -424,6 +424,36 @@ class TestRunner {
         document.getElementById('gridDisplay').textContent = '';
         document.getElementById('stepInfo').textContent = '';
     }
+    
+    /**
+     * Run all tests with a given GLSL shader (for genetic algorithm)
+     * Returns: { passed: number, failed: number, total: number }
+     */
+    async runAllWithGLSL(glslShader) {
+        let passed = 0;
+        let failed = 0;
+        
+        for (let i = 0; i < this.tests.length; i++) {
+            const test = this.tests[i];
+            try {
+                await test.fn(null, glslShader); // null = no visualization, custom shader
+                passed++;
+            } catch (error) {
+                failed++;
+            }
+            
+            // Yield to browser every few tests to keep UI responsive
+            if (i % 3 === 0) {
+                await new Promise(resolve => setTimeout(resolve, 0));
+            }
+        }
+        
+        return {
+            passed,
+            failed,
+            total: this.tests.length
+        };
+    }
 }
 
 // Load shader
@@ -451,8 +481,9 @@ async function loadShader(path) {
         
         const description = `${frames.length} frame sequence (${width}×${height})`;
         
-        runner.test(name, description, async (visualize) => {
-            const sim = new TestSimulation(width, height, shaderSource);
+        runner.test(name, description, async (visualize, customShader) => {
+            const shader = customShader || shaderSource;
+            const sim = new TestSimulation(width, height, shader);
             
             // Load initial state (frame 0)
             loadGridIntoSim(sim, frames[0]);
@@ -517,19 +548,37 @@ async function loadShader(path) {
         });
     }
     
-    // Setup UI
-    document.getElementById('runAllBtn').addEventListener('click', () => {
-        runner.runAll();
-    });
+    // Setup UI (only if elements exist)
+    const runAllBtn = document.getElementById('runAllBtn');
+    const clearBtn = document.getElementById('clearBtn');
     
-    document.getElementById('clearBtn').addEventListener('click', () => {
-        runner.clear();
-    });
+    if (runAllBtn) {
+        runAllBtn.addEventListener('click', () => {
+            runner.runAll();
+        });
+    }
+    
+    if (clearBtn) {
+        clearBtn.addEventListener('click', () => {
+            runner.clear();
+        });
+    }
     
     console.log('✅ Test runner initialized');
     console.log('📊 Loaded', runner.tests.length, 'tests');
     
-    // Auto-run tests on load
-    runner.runAll();
+    // Auto-run tests on load (only if in test UI)
+    if (runAllBtn) {
+        runner.runAll();
+    }
+    
+    // Export for genetic algorithm (if running in module context)
+    if (typeof window !== 'undefined') {
+        window.TestRunner = TestRunner;
+        window.testRunnerInstance = runner; // Export the actual initialized instance
+    }
 })();
+
+// Also export for use as ES module
+export { TestRunner, CellType };
 

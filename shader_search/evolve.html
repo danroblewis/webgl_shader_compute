@@ -1,0 +1,447 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🧬 Genetic Shader Evolution</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #1e1e1e;
+            color: #d4d4d4;
+            padding: 20px;
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 2px solid #3e3e42;
+        }
+        
+        h1 {
+            font-size: 36px;
+            margin-bottom: 10px;
+        }
+        
+        .subtitle {
+            color: #888;
+            font-size: 14px;
+        }
+        
+        .controls {
+            background: #2d2d30;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            border: 1px solid #3e3e42;
+        }
+        
+        .controls h2 {
+            margin-bottom: 15px;
+            color: #4ec9b0;
+        }
+        
+        .control-group {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 15px;
+            flex-wrap: wrap;
+        }
+        
+        .control-item {
+            flex: 1;
+            min-width: 200px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 5px;
+            color: #9cdcfe;
+            font-size: 13px;
+        }
+        
+        input[type="number"], select {
+            width: 100%;
+            padding: 8px;
+            background: #1e1e1e;
+            border: 1px solid #3e3e42;
+            color: #d4d4d4;
+            border-radius: 4px;
+        }
+        
+        button {
+            background: #0e639c;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            cursor: pointer;
+            border-radius: 4px;
+            font-size: 14px;
+            font-weight: bold;
+            transition: background 0.2s;
+        }
+        
+        button:hover {
+            background: #1177bb;
+        }
+        
+        button:disabled {
+            background: #555;
+            cursor: not-allowed;
+        }
+        
+        button.stop {
+            background: #c72e2e;
+        }
+        
+        button.stop:hover {
+            background: #e81123;
+        }
+        
+        .status {
+            background: #2d2d30;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            border: 1px solid #3e3e42;
+        }
+        
+        .status h2 {
+            margin-bottom: 15px;
+            color: #dcdcaa;
+        }
+        
+        .status-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+        }
+        
+        .stat-item {
+            background: #1e1e1e;
+            padding: 12px;
+            border-radius: 4px;
+            border: 1px solid #3e3e42;
+        }
+        
+        .stat-label {
+            color: #888;
+            font-size: 12px;
+            margin-bottom: 5px;
+        }
+        
+        .stat-value {
+            font-size: 24px;
+            font-weight: bold;
+            color: #4ec9b0;
+        }
+        
+        .progress-bar {
+            width: 100%;
+            height: 20px;
+            background: #1e1e1e;
+            border-radius: 4px;
+            overflow: hidden;
+            border: 1px solid #3e3e42;
+            margin-top: 10px;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #0e639c, #4ec9b0);
+            width: 0%;
+            transition: width 0.3s;
+        }
+        
+        .log {
+            background: #2d2d30;
+            padding: 20px;
+            border-radius: 8px;
+            border: 1px solid #3e3e42;
+            margin-bottom: 20px;
+        }
+        
+        .log h2 {
+            margin-bottom: 15px;
+            color: #ce9178;
+        }
+        
+        .log-content {
+            background: #1e1e1e;
+            padding: 15px;
+            border-radius: 4px;
+            font-family: 'Consolas', 'Courier New', monospace;
+            font-size: 12px;
+            max-height: 300px;
+            overflow-y: auto;
+            border: 1px solid #3e3e42;
+        }
+        
+        .log-entry {
+            margin-bottom: 5px;
+            padding: 3px 0;
+        }
+        
+        .log-entry.success {
+            color: #4ec9b0;
+        }
+        
+        .log-entry.error {
+            color: #f48771;
+        }
+        
+        .log-entry.info {
+            color: #9cdcfe;
+        }
+        
+        .best-solution {
+            background: #2d2d30;
+            padding: 20px;
+            border-radius: 8px;
+            border: 1px solid #3e3e42;
+        }
+        
+        .best-solution h2 {
+            margin-bottom: 15px;
+            color: #c586c0;
+        }
+        
+        .shader-preview {
+            background: #1e1e1e;
+            padding: 15px;
+            border-radius: 4px;
+            font-family: 'Consolas', 'Courier New', monospace;
+            font-size: 11px;
+            max-height: 400px;
+            overflow-y: auto;
+            border: 1px solid #3e3e42;
+            white-space: pre;
+        }
+        
+        canvas {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="canvas" width="256" height="256"></canvas>
+    
+    <div class="header">
+        <h1>🧬 Genetic Shader Evolution</h1>
+        <div class="subtitle">Evolving cellular automata GLSL shaders using genetic algorithms</div>
+    </div>
+    
+    <div class="controls">
+        <h2>⚙️ Evolution Parameters</h2>
+        <div class="control-group">
+            <div class="control-item">
+                <label>Population Size</label>
+                <input type="number" id="populationSize" value="20" min="2" max="100">
+            </div>
+            <div class="control-item">
+                <label>Elite Size</label>
+                <input type="number" id="eliteSize" value="2" min="1" max="10">
+            </div>
+            <div class="control-item">
+                <label>Max Generations</label>
+                <input type="number" id="maxGenerations" value="100" min="1" max="1000">
+            </div>
+        </div>
+        <div class="control-group">
+            <div class="control-item">
+                <label>Mutation Rate</label>
+                <input type="number" id="mutationRate" value="0.7" min="0" max="1" step="0.1">
+            </div>
+            <div class="control-item">
+                <label>Crossover Rate</label>
+                <input type="number" id="crossoverRate" value="0.3" min="0" max="1" step="0.1">
+            </div>
+        </div>
+        <div style="margin-top: 15px;">
+            <button id="startBtn">▶️ Start Evolution</button>
+            <button id="stopBtn" style="display: none;" class="stop">⏹️ Stop</button>
+        </div>
+    </div>
+    
+    <div class="status">
+        <h2>📊 Evolution Status</h2>
+        <div class="status-grid">
+            <div class="stat-item">
+                <div class="stat-label">Generation</div>
+                <div class="stat-value" id="generation">0</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-label">Best Fitness</div>
+                <div class="stat-value" id="bestFitness">0 / 0</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-label">Average Fitness</div>
+                <div class="stat-value" id="avgFitness">0.00</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-label">Evaluations</div>
+                <div class="stat-value" id="evaluations">0</div>
+            </div>
+        </div>
+        <div class="progress-bar">
+            <div class="progress-fill" id="progressFill"></div>
+        </div>
+    </div>
+    
+    <div class="log">
+        <h2>📝 Evolution Log</h2>
+        <div class="log-content" id="logContent">
+            <div class="log-entry info">Waiting to start evolution...</div>
+        </div>
+    </div>
+    
+    <div class="best-solution">
+        <h2>🏆 Best Solution</h2>
+        <div class="shader-preview" id="shaderPreview">No solution yet...</div>
+    </div>
+    
+    <script type="module">
+        import { GeneticAlgorithm } from './genetic-algorithm.js';
+        
+        let ga = null;
+        let running = false;
+        let totalEvaluations = 0;
+        
+        // UI elements
+        const startBtn = document.getElementById('startBtn');
+        const stopBtn = document.getElementById('stopBtn');
+        const logContent = document.getElementById('logContent');
+        const shaderPreview = document.getElementById('shaderPreview');
+        
+        // Stats elements
+        const generationEl = document.getElementById('generation');
+        const bestFitnessEl = document.getElementById('bestFitness');
+        const avgFitnessEl = document.getElementById('avgFitness');
+        const evaluationsEl = document.getElementById('evaluations');
+        const progressFillEl = document.getElementById('progressFill');
+        
+        function log(message, type = 'info') {
+            const entry = document.createElement('div');
+            entry.className = `log-entry ${type}`;
+            entry.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+            logContent.appendChild(entry);
+            logContent.scrollTop = logContent.scrollHeight;
+        }
+        
+        function updateStats(stats) {
+            generationEl.textContent = stats.generation || 0;
+            bestFitnessEl.textContent = `${stats.bestFitness || 0} / ${stats.totalTests || 0}`;
+            avgFitnessEl.textContent = (stats.avgFitness || 0).toFixed(2);
+            evaluationsEl.textContent = totalEvaluations;
+            
+            if (stats.maxGenerations) {
+                const progress = (stats.generation / stats.maxGenerations) * 100;
+                progressFillEl.style.width = `${progress}%`;
+            }
+        }
+        
+        async function startEvolution() {
+            if (running) return;
+            
+            running = true;
+            startBtn.style.display = 'none';
+            stopBtn.style.display = 'inline-block';
+            totalEvaluations = 0;
+            
+            // Get parameters
+            const config = {
+                populationSize: parseInt(document.getElementById('populationSize').value),
+                eliteSize: parseInt(document.getElementById('eliteSize').value),
+                maxGenerations: parseInt(document.getElementById('maxGenerations').value),
+                mutationRate: parseFloat(document.getElementById('mutationRate').value),
+                crossoverRate: parseFloat(document.getElementById('crossoverRate').value)
+            };
+            
+            log('🚀 Starting genetic algorithm...', 'info');
+            log(`Population: ${config.populationSize}, Generations: ${config.maxGenerations}`, 'info');
+            
+            ga = new GeneticAlgorithm(config);
+            
+            // Set up callbacks
+            ga.onIndividualEvaluated = (data) => {
+                totalEvaluations++;
+                updateStats({
+                    generation: data.generation,
+                    bestFitness: ga.bestFitness,
+                    avgFitness: 0,
+                    totalTests: data.testTotal,
+                    maxGenerations: config.maxGenerations
+                });
+            };
+            
+            ga.onGenerationComplete = (data) => {
+                log(`Generation ${data.generation} complete. Best: ${data.bestFitness}, Avg: ${data.avgFitness.toFixed(2)}`, 
+                    data.bestFitness > 0 ? 'success' : 'info');
+                
+                updateStats({
+                    generation: data.generation,
+                    bestFitness: data.bestFitness,
+                    avgFitness: data.avgFitness,
+                    totalTests: ga.testRunner.tests.length,
+                    maxGenerations: config.maxGenerations
+                });
+                
+                // Update shader preview
+                if (ga.bestGenome) {
+                    shaderPreview.textContent = ga.bestGenome.toGLSL();
+                }
+            };
+            
+            try {
+                const result = await ga.run();
+                
+                if (result.bestFitness === ga.testRunner.tests.length) {
+                    log(`🏆 Perfect solution found! All tests passed in generation ${result.generation}`, 'success');
+                } else {
+                    log(`✅ Evolution complete. Best fitness: ${result.bestFitness}/${ga.testRunner.tests.length}`, 'info');
+                }
+                
+                shaderPreview.textContent = result.bestGenome.toGLSL();
+                
+            } catch (error) {
+                if (error.message.includes('cancelled')) {
+                    log(`⏹️ Evolution stopped by user at generation ${ga.generation}`, 'info');
+                    if (ga.bestGenome) {
+                        shaderPreview.textContent = ga.bestGenome.toGLSL();
+                    }
+                } else {
+                    log(`❌ Error: ${error.message}`, 'error');
+                    console.error(error);
+                }
+            }
+            
+            running = false;
+            startBtn.style.display = 'inline-block';
+            stopBtn.style.display = 'none';
+        }
+        
+        function stopEvolution() {
+            if (ga && running) {
+                log('⏹️ Stopping evolution...', 'info');
+                ga.stop(); // Signal the GA to stop
+                running = false;
+                startBtn.style.display = 'inline-block';
+                stopBtn.style.display = 'none';
+            }
+        }
+        
+        startBtn.addEventListener('click', startEvolution);
+        stopBtn.addEventListener('click', stopEvolution);
+        
+        log('✅ Ready to start evolution', 'success');
+    </script>
+</body>
+</html>
+

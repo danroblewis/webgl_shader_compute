@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Genome Generation</title>
+    <style>
+        body {
+            font-family: monospace;
+            background: #1e1e1e;
+            color: #d4d4d4;
+            padding: 20px;
+        }
+        button {
+            background: #007acc;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            cursor: pointer;
+            margin: 10px 5px;
+        }
+        button:hover {
+            background: #005a9e;
+        }
+        pre {
+            background: #2d2d30;
+            padding: 15px;
+            border: 1px solid #3e3e42;
+            overflow-x: auto;
+            max-height: 600px;
+            overflow-y: auto;
+        }
+        .info {
+            background: #2d2d30;
+            padding: 10px;
+            margin: 10px 0;
+            border-left: 3px solid #007acc;
+        }
+    </style>
+</head>
+<body>
+    <h1>🧬 Genome GLSL Generation Test</h1>
+    
+    <div class="info">
+        <strong>Testing:</strong> Pattern-based cellular automata genome → GLSL generation
+    </div>
+    
+    <div>
+        <button id="generateBtn">Generate Seed Genome</button>
+        <button id="mutateBtn">Mutate</button>
+        <button id="crossoverBtn">Crossover (Self)</button>
+    </div>
+    
+    <div id="stats"></div>
+    
+    <h2>Generated GLSL:</h2>
+    <pre id="glslOutput"></pre>
+    
+    <script type="module">
+        import { createSeedGenome } from './genome.js';
+        import { mutate, crossover } from './evolution.js';
+        
+        let currentGenome = null;
+        
+        function displayGenome(genome) {
+            currentGenome = genome;
+            
+            // Generate GLSL
+            const glsl = genome.toGLSL();
+            document.getElementById('glslOutput').textContent = glsl;
+            
+            // Show stats
+            let totalRules = 0;
+            let statsHtml = '<div class="info"><strong>Genome Stats:</strong><br>';
+            for (const cellType in genome.rules) {
+                const rules = genome.rules[cellType];
+                const typeName = ['EMPTY', 'SAND', 'STONE'][cellType];
+                statsHtml += `${typeName}: ${rules.length} rules<br>`;
+                totalRules += rules.length;
+            }
+            statsHtml += `<strong>Total Rules: ${totalRules}</strong></div>`;
+            document.getElementById('stats').innerHTML = statsHtml;
+        }
+        
+        document.getElementById('generateBtn').addEventListener('click', () => {
+            const genome = createSeedGenome();
+            displayGenome(genome);
+        });
+        
+        document.getElementById('mutateBtn').addEventListener('click', () => {
+            if (!currentGenome) {
+                alert('Generate a genome first!');
+                return;
+            }
+            const mutated = mutate(currentGenome);
+            displayGenome(mutated);
+        });
+        
+        document.getElementById('crossoverBtn').addEventListener('click', () => {
+            if (!currentGenome) {
+                alert('Generate a genome first!');
+                return;
+            }
+            // Crossover with itself (just for testing)
+            const child = crossover(currentGenome, currentGenome);
+            displayGenome(child);
+        });
+        
+        // Auto-generate on load
+        window.addEventListener('load', () => {
+            const genome = createSeedGenome();
+            displayGenome(genome);
+        });
+    </script>
+</body>
+</html>
+
