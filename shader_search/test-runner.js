@@ -37,9 +37,9 @@ class TestSimulation extends GridSimulation {
         const buffer = this.getCurrentBuffer();
         
         // Return grid in reading order (top to bottom)
-        // Don't reverse - read directly in order
+        // WebGL texture data is bottom-to-top, so we reverse it
         const grid = [];
-        for (let y = 0; y < this.height; y++) {
+        for (let y = this.height - 1; y >= 0; y--) {
             const row = [];
             for (let x = 0; x < this.width; x++) {
                 const idx = (y * this.width + x) * 4;
@@ -97,12 +97,14 @@ function gridToHTML(grid) {
 // Helper to load grid into simulation
 function loadGridIntoSim(sim, grid) {
     // Grid is in reading order (top to bottom)
-    // DON'T flip - just load directly
-    // First line in file (y=0) goes to simY=0
+    // WebGL has Y=0 at bottom, Y=max at top, which matches physics (bottom=floor)
+    // So we need to flip: first line in file = top = highest Y coordinate
     for (let y = 0; y < grid.length; y++) {
         for (let x = 0; x < grid[y].length; x++) {
             const value = grid[y][x];
-            sim.setCell(x, y, value);
+            // First line in file (y=0) should be at top (simY=height-1)
+            const simY = grid.length - 1 - y;
+            sim.setCell(x, simY, value);
         }
     }
 }
