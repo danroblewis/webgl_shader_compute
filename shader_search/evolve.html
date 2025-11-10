@@ -228,10 +228,68 @@
         canvas {
             display: none;
         }
+        
+        .test-results {
+            background: #2d2d30;
+            padding: 20px;
+            border-radius: 8px;
+            border: 1px solid #3e3e42;
+            margin-bottom: 20px;
+        }
+        
+        .test-results h2 {
+            margin-bottom: 15px;
+            color: #9cdcfe;
+        }
+        
+        .test-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 15px;
+        }
+        
+        .test-item-result {
+            background: #1e1e1e;
+            padding: 10px;
+            border-radius: 4px;
+            border: 2px solid #3e3e42;
+        }
+        
+        .test-item-result.passed {
+            border-color: #4ec9b0;
+        }
+        
+        .test-item-result.failed {
+            border-color: #f48771;
+        }
+        
+        .test-item-result h3 {
+            margin: 0 0 5px 0;
+            font-size: 14px;
+        }
+        
+        .live-sim {
+            background: #2d2d30;
+            padding: 20px;
+            border-radius: 8px;
+            border: 1px solid #3e3e42;
+            margin-bottom: 20px;
+        }
+        
+        .live-sim h2 {
+            margin-bottom: 15px;
+            color: #dcdcaa;
+        }
+        
+        #liveCanvas {
+            image-rendering: pixelated;
+            image-rendering: crisp-edges;
+        }
     </style>
 </head>
 <body>
     <canvas id="canvas" width="256" height="256"></canvas>
+    <canvas id="liveSimCanvas" width="100" height="100" style="display: none;"></canvas>
     
     <div class="header">
         <h1>🧬 Genetic Shader Evolution</h1>
@@ -304,11 +362,36 @@
     
     <div class="best-solution">
         <h2>🏆 Best Solution</h2>
+        <button id="copyShaderBtn" style="margin-bottom: 10px;">📋 Copy Shader</button>
         <div class="shader-preview" id="shaderPreview">No solution yet...</div>
+    </div>
+    
+    <div class="test-results" id="testResults" style="display: none;">
+        <h2>📊 Test Results for Best Shader</h2>
+        <div id="testResultsContent"></div>
+    </div>
+    
+    <div class="live-sim">
+        <h2>🎮 Live Simulation</h2>
+        <div style="margin-bottom: 10px;">
+            <button id="playPauseBtn">▶️ Play</button>
+            <button id="clearSimBtn">🗑️ Clear</button>
+            <button id="randomizeSimBtn">🎲 Randomize</button>
+            <label style="margin-left: 10px;">
+                Paint:
+                <select id="paintMaterial">
+                    <option value="0">Empty</option>
+                    <option value="1" selected>Sand</option>
+                    <option value="2">Stone</option>
+                </select>
+            </label>
+        </div>
+        <canvas id="liveCanvas" width="100" height="100" style="border: 2px solid #3e3e42; cursor: crosshair; display: block; width: 400px; height: 400px;"></canvas>
     </div>
     
     <script type="module">
         import { GeneticAlgorithm } from './genetic-algorithm.js';
+        import { GridSimulation } from '../grid-simulation.js';
         
         let ga = null;
         let running = false;
@@ -326,6 +409,16 @@
         const avgFitnessEl = document.getElementById('avgFitness');
         const evaluationsEl = document.getElementById('evaluations');
         const progressFillEl = document.getElementById('progressFill');
+        
+        // Live simulation state
+        let liveSim = null;
+        let liveAnimationId = null;
+        let isPlaying = false;
+        let paintMaterial = 1; // Sand
+        
+        const liveCanvas = document.getElementById('liveCanvas');
+        const playPauseBtn = document.getElementById('playPauseBtn');
+        const paintMaterialSelect = document.getElementById('paintMaterial');
         
         function log(message, type = 'info') {
             const entry = document.createElement('div');
@@ -396,6 +489,8 @@
                 // Update shader preview
                 if (ga.bestGenome) {
                     shaderPreview.textContent = ga.bestGenome.toGLSL();
+                    // Update live simulation and test results
+                    updateBestShader(ga.bestGenome);
                 }
             };
             
@@ -409,12 +504,14 @@
                 }
                 
                 shaderPreview.textContent = result.bestGenome.toGLSL();
+                updateBestShader(result.bestGenome);
                 
             } catch (error) {
                 if (error.message.includes('cancelled')) {
                     log(`⏹️ Evolution stopped by user at generation ${ga.generation}`, 'info');
                     if (ga.bestGenome) {
                         shaderPreview.textContent = ga.bestGenome.toGLSL();
+                        updateBestShader(ga.bestGenome);
                     }
                 } else {
                     log(`❌ Error: ${error.message}`, 'error');
@@ -439,6 +536,187 @@
         
         startBtn.addEventListener('click', startEvolution);
         stopBtn.addEventListener('click', stopEvolution);
+        
+        // Copy shader button
+        document.getElementById('copyShaderBtn').addEventListener('click', () => {
+            const shaderText = shaderPreview.textContent;
+            if (shaderText && shaderText !== 'No solution yet...') {
+                navigator.clipboard.writeText(shaderText).then(() => {
+                    log('📋 Shader copied to clipboard', 'success');
+                }).catch(err => {
+                    log('❌ Failed to copy shader', 'error');
+                });
+            }
+        });
+        
+        // Test results for best shader
+        async function showTestResults(genome) {
+            if (!genome) return;
+            
+            const glsl = genome.toGLSL();
+            const testResultsDiv = document.getElementById('testResults');
+            const testResultsContent = document.getElementById('testResultsContent');
+            
+            testResultsDiv.style.display = 'block';
+            testResultsContent.innerHTML = '<p>Running tests...</p>';
+            
+            // Run tests
+            const runner = window.testRunnerInstance;
+            if (!runner) return;
+            
+            const testGrid = document.createElement('div');
+            testGrid.className = 'test-grid';
+            
+            for (let i = 0; i < runner.tests.length; i++) {
+                const test = runner.tests[i];
+                const testItem = document.createElement('div');
+                testItem.className = 'test-item-result';
+                
+                try {
+                    await test.fn(null, glsl);
+                    testItem.classList.add('passed');
+                    testItem.innerHTML = `<h3>✅ ${test.name}</h3>`;
+                } catch (error) {
+                    testItem.classList.add('failed');
+                    testItem.innerHTML = `<h3>❌ ${test.name}</h3><small>${error.message.split('\n')[0]}</small>`;
+                }
+                
+                testGrid.appendChild(testItem);
+            }
+            
+            testResultsContent.innerHTML = '';
+            testResultsContent.appendChild(testGrid);
+        }
+        
+        // Live simulation functions
+        paintMaterialSelect.addEventListener('change', (e) => {
+            paintMaterial = parseInt(e.target.value);
+        });
+        
+        let liveRender = null; // Store render function for external access
+        
+        function initLiveSimulation(glsl) {
+            if (liveSim) {
+                liveSim.dispose();
+            }
+            
+            try {
+                // Use hidden canvas for WebGL
+                const webglCanvas = document.getElementById('liveSimCanvas');
+                liveSim = new GridSimulation({
+                    width: 100,
+                    height: 100,
+                    canvas: webglCanvas,
+                    rule: glsl,
+                    initialState: 'empty'
+                });
+                
+                // Draw to visible canvas using 2D context
+                const ctx = liveCanvas.getContext('2d');
+                const imageData = ctx.createImageData(100, 100);
+                
+                liveRender = function render() {
+                    const buffer = liveSim.getCurrentBuffer();
+                    const colors = {
+                        0: [30, 30, 30],      // EMPTY
+                        1: [244, 208, 63],    // SAND
+                        2: [128, 128, 128]    // STONE
+                    };
+                    
+                    for (let y = 0; y < 100; y++) {
+                        for (let x = 0; x < 100; x++) {
+                            const idx = (y * 100 + x) * 4;
+                            const value = Math.round(buffer[idx]);
+                            const color = colors[value] || [255, 0, 255];
+                            
+                            const pixelIdx = (y * 100 + x) * 4;
+                            imageData.data[pixelIdx] = color[0];
+                            imageData.data[pixelIdx + 1] = color[1];
+                            imageData.data[pixelIdx + 2] = color[2];
+                            imageData.data[pixelIdx + 3] = 255;
+                        }
+                    }
+                    
+                    ctx.putImageData(imageData, 0, 0);
+                };
+                
+                function animate() {
+                    if (isPlaying && liveSim) {
+                        liveSim.step();
+                        liveRender();
+                    }
+                    liveAnimationId = requestAnimationFrame(animate);
+                }
+                
+                liveRender();
+                animate();
+            } catch (error) {
+                console.error('Failed to initialize live simulation:', error);
+            }
+        }
+        
+        playPauseBtn.addEventListener('click', () => {
+            isPlaying = !isPlaying;
+            playPauseBtn.textContent = isPlaying ? '⏸️ Pause' : '▶️ Play';
+        });
+        
+        document.getElementById('clearSimBtn').addEventListener('click', () => {
+            if (liveSim && liveRender) {
+                liveSim.clear();
+                liveRender();
+            }
+        });
+        
+        document.getElementById('randomizeSimBtn').addEventListener('click', () => {
+            if (liveSim && liveRender) {
+                liveSim.randomize(0.3);
+                liveRender();
+            }
+        });
+        
+        // Drawing on canvas
+        let isDrawing = false;
+        
+        liveCanvas.addEventListener('mousedown', (e) => {
+            isDrawing = true;
+            draw(e);
+        });
+        
+        liveCanvas.addEventListener('mousemove', (e) => {
+            if (isDrawing) {
+                draw(e);
+            }
+        });
+        
+        liveCanvas.addEventListener('mouseup', () => {
+            isDrawing = false;
+        });
+        
+        liveCanvas.addEventListener('mouseleave', () => {
+            isDrawing = false;
+        });
+        
+        function draw(e) {
+            if (!liveSim || !liveRender) return;
+            
+            const rect = liveCanvas.getBoundingClientRect();
+            const x = Math.floor((e.clientX - rect.left) / rect.width * 100);
+            const y = Math.floor((e.clientY - rect.top) / rect.height * 100);
+            
+            if (x >= 0 && x < 100 && y >= 0 && y < 100) {
+                liveSim.setCell(x, y, [paintMaterial, 0, 0, 1]);
+                liveRender();
+            }
+        }
+        
+        // Update live sim and test results when best genome changes
+        function updateBestShader(genome) {
+            if (genome) {
+                const glsl = genome.toGLSL();
+                initLiveSimulation(glsl);
+                showTestResults(genome);
+            }
+        }
         
         log('✅ Ready to start evolution', 'success');
     </script>
