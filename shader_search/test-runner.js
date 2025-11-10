@@ -429,19 +429,31 @@ class TestRunner {
     
     /**
      * Run all tests with a given GLSL shader (for genetic algorithm)
-     * Returns: { passed: number, failed: number, total: number }
+     * Returns: { passed: number, failed: number, total: number, correctTransitions: number, totalTransitions: number }
      */
     async runAllWithGLSL(glslShader) {
         let passed = 0;
         let failed = 0;
+        let correctTransitions = 0;
+        let totalTransitions = 0;
         
         for (let i = 0; i < this.tests.length; i++) {
             const test = this.tests[i];
             try {
-                await test.fn(null, glslShader); // null = no visualization, custom shader
+                const result = await test.fn(null, glslShader); // null = no visualization, custom shader
                 passed++;
+                // Add transitions from successful test
+                if (result) {
+                    correctTransitions += result.correctTransitions || 0;
+                    totalTransitions += result.totalTransitions || 0;
+                }
             } catch (error) {
                 failed++;
+                // Extract partial credit from error if available
+                if (error.correctTransitions !== undefined) {
+                    correctTransitions += error.correctTransitions;
+                    totalTransitions += error.totalTransitions;
+                }
             }
             
             // Yield to browser every few tests to keep UI responsive
@@ -453,7 +465,9 @@ class TestRunner {
         return {
             passed,
             failed,
-            total: this.tests.length
+            total: this.tests.length,
+            correctTransitions,
+            totalTransitions
         };
     }
 }
@@ -523,13 +537,19 @@ async function loadShader(path) {
                 }
             } else {
                 // Fast mode: check every frame but without visualization
+                // Track correct transitions for partial credit
+                let correctTransitions = 0;
+                let totalTransitions = frames.length; // Including initial state
+                let firstError = null;
+                
                 // Verify initial state matches
                 const initialGrid = sim.getGrid();
                 const initialCheck = compareGrids(initialGrid, frames[0]);
                 
-                if (!initialCheck.match) {
-                    sim.dispose();
-                    throw new Error(`Initial state mismatch: ${initialCheck.reason}`);
+                if (initialCheck.match) {
+                    correctTransitions++;
+                } else {
+                    firstError = firstError || `Initial state mismatch: ${initialCheck.reason}`;
                 }
                 
                 // Run simulation and check each frame
@@ -539,11 +559,25 @@ async function loadShader(path) {
                     const actualGrid = sim.getGrid();
                     const check = compareGrids(actualGrid, frames[i]);
                     
-                    if (!check.match) {
-                        sim.dispose();
-                        throw new Error(`Frame ${i+1}: ${check.reason}`);
+                    if (check.match) {
+                        correctTransitions++;
+                    } else {
+                        firstError = firstError || `Frame ${i+1}: ${check.reason}`;
                     }
                 }
+                
+                sim.dispose();
+                
+                // If there were errors, throw but include partial credit
+                if (firstError) {
+                    const error = new Error(firstError);
+                    error.correctTransitions = correctTransitions;
+                    error.totalTransitions = totalTransitions;
+                    throw error;
+                }
+                
+                // Return success with transition counts
+                return { correctTransitions, totalTransitions };
             }
             
             sim.dispose();

@@ -430,7 +430,14 @@
         
         function updateStats(stats) {
             generationEl.textContent = stats.generation || 0;
-            bestFitnessEl.textContent = `${stats.bestFitness || 0} / ${stats.totalTests || 0}`;
+            
+            // Display both passed tests and fitness score
+            if (stats.passedTests !== undefined && stats.totalTests !== undefined) {
+                bestFitnessEl.textContent = `${stats.passedTests}/${stats.totalTests} tests (${(stats.bestFitness || 0).toFixed(1)} pts)`;
+            } else {
+                bestFitnessEl.textContent = `${(stats.bestFitness || 0).toFixed(1)} pts`;
+            }
+            
             avgFitnessEl.textContent = (stats.avgFitness || 0).toFixed(2);
             evaluationsEl.textContent = totalEvaluations;
             
@@ -469,18 +476,20 @@
                     generation: data.generation,
                     bestFitness: ga.bestFitness,
                     avgFitness: 0,
+                    passedTests: data.passed,
                     totalTests: data.testTotal,
                     maxGenerations: config.maxGenerations
                 });
             };
             
             ga.onGenerationComplete = (data) => {
-                log(`Generation ${data.generation} complete. Best: ${data.bestFitness}, Avg: ${data.avgFitness.toFixed(2)}`, 
+                log(`Generation ${data.generation} complete. Best: ${data.bestFitness.toFixed(1)}, Avg: ${data.avgFitness.toFixed(2)}`, 
                     data.bestFitness > 0 ? 'success' : 'info');
                 
                 updateStats({
                     generation: data.generation,
                     bestFitness: data.bestFitness,
+                    passedTests: data.bestPassedTests,
                     avgFitness: data.avgFitness,
                     totalTests: ga.testRunner.tests.length,
                     maxGenerations: config.maxGenerations

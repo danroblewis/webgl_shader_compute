@@ -18,6 +18,7 @@ export class GeneticAlgorithm {
         this.generation = 0;
         this.bestGenome = null;
         this.bestFitness = -Infinity;
+        this.bestPassedTests = 0; // Track passed tests for best individual
         this.testRunner = null;
         this.cancelled = false;
         
@@ -63,10 +64,15 @@ export class GeneticAlgorithm {
         // Run tests in fast mode
         const results = await this.testRunner.runAllWithGLSL(glsl);
         
-        // Calculate fitness
-        // Simple fitness: number of passed tests
-        // Could be more sophisticated (partial credit, early frames, etc.)
-        const fitness = results.passed;
+        // Calculate fitness with partial credit
+        // - 1 point for each correct state transition
+        // - Bonus points (equal to test's transition count) for passing entire test
+        let fitness = results.correctTransitions;
+        
+        // Add bonus for complete test passes
+        // Each passed test gets bonus points equal to its frame count
+        // This encourages completing tests while still rewarding partial progress
+        fitness += results.passed * (results.totalTransitions / results.total);
         
         individual.fitness = fitness;
         
@@ -74,10 +80,18 @@ export class GeneticAlgorithm {
         if (fitness > this.bestFitness) {
             this.bestFitness = fitness;
             this.bestGenome = individual.genome.clone();
-            console.log(`🎉 New best! Generation ${this.generation}, Fitness: ${fitness}/${results.total}`);
+            this.bestPassedTests = results.passed;
+            const percentage = ((results.correctTransitions / results.totalTransitions) * 100).toFixed(1);
+            console.log(`🎉 New best! Generation ${this.generation}, Fitness: ${fitness.toFixed(1)} (${results.passed}/${results.total} tests, ${percentage}% transitions)`);
         }
         
-        return { fitness, passed: results.passed, total: results.total };
+        return { 
+            fitness, 
+            passed: results.passed, 
+            total: results.total,
+            correctTransitions: results.correctTransitions,
+            totalTransitions: results.totalTransitions
+        };
     }
     
     async evaluatePopulation() {
@@ -195,6 +209,7 @@ export class GeneticAlgorithm {
                 this.onGenerationComplete({
                     generation: this.generation,
                     bestFitness: this.bestFitness,
+                    bestPassedTests: this.bestPassedTests,
                     avgFitness: this.population.reduce((sum, ind) => sum + ind.fitness, 0) / this.population.length,
                     population: this.population.map(ind => ind.fitness)
                 });
