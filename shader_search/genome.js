@@ -96,16 +96,14 @@ void main() {
     float current = getCell(vec2(0.0, 0.0));
     
     // Get 8 neighbors
-    // In our coordinate system: Y=0 is top of file (ceiling), Y=max is bottom (floor)
-    // So +Y offset goes DOWN, -Y offset goes UP
-    float NW = getCell(vec2(-1.0, -1.0));
-    float N  = getCell(vec2( 0.0, -1.0));
-    float NE = getCell(vec2( 1.0, -1.0));
+    float NW = getCell(vec2(-1.0,  1.0));
+    float N  = getCell(vec2( 0.0,  1.0));
+    float NE = getCell(vec2( 1.0,  1.0));
     float W  = getCell(vec2(-1.0,  0.0));
     float E  = getCell(vec2( 1.0,  0.0));
-    float SW = getCell(vec2(-1.0,  1.0));
-    float S  = getCell(vec2( 0.0,  1.0));
-    float SE = getCell(vec2( 1.0,  1.0));
+    float SW = getCell(vec2(-1.0, -1.0));
+    float S  = getCell(vec2( 0.0, -1.0));
+    float SE = getCell(vec2( 1.0, -1.0));
     
     float newState = current;  // Default: stay the same
     
