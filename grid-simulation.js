@@ -198,6 +198,32 @@ class GridSimulation {
     }
     
     /**
+     * Get entire grid as 2D array of RGBA values
+     * Note: WebGL uses bottom-up Y coordinate system, so we reverse Y for top-down reading order
+     * @returns {Array<Array<Array<number>>>} 2D array where each cell is [r, g, b, a]
+     */
+    getGrid() {
+        const buffer = this.getCurrentBuffer();
+        const grid = [];
+        
+        // Read from bottom to top to convert WebGL coords to reading order
+        for (let y = this.height - 1; y >= 0; y--) {
+            const row = [];
+            for (let x = 0; x < this.width; x++) {
+                const idx = (y * this.width + x) * 4;
+                row.push([
+                    buffer[idx],
+                    buffer[idx + 1],
+                    buffer[idx + 2],
+                    buffer[idx + 3]
+                ]);
+            }
+            grid.push(row);
+        }
+        return grid;
+    }
+    
+    /**
      * Run simulation for N steps
      * PERFORMANCE: Pure GPU, no downloads
      * @param {number} count - Number of steps (default 1)

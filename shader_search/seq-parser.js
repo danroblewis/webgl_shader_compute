@@ -102,10 +102,94 @@ export function filenameToTestName(filename) {
 }
 
 /**
+ * Parse test_suite.txt format
+ * Format: TEST: name\nGRID: WxH\n\nFRAME:\ngrid...\n\nFRAME:\ngrid...
+ */
+export function parseTestSuite(content) {
+    const tests = [];
+    const testBlocks = content.split(/TEST:/);
+    
+    for (const block of testBlocks) {
+        if (!block.trim()) continue;
+        
+        const lines = block.trim().split('\n');
+        const testName = lines[0].trim();
+        
+        // Find GRID: line
+        const gridLine = lines.find(l => l.trim().startsWith('GRID:'));
+        if (!gridLine) continue;
+        
+        const [width, height] = gridLine.split(':')[1].trim().toLowerCase().split('x').map(Number);
+        
+        // Parse frames
+        const frames = [];
+        let currentFrame = [];
+        let inFrame = false;
+        
+        for (const line of lines) {
+            if (line.trim().startsWith('FRAME:')) {
+                if (currentFrame.length > 0) {
+                    frames.push(parseGridLines(currentFrame, width, height));
+                    currentFrame = [];
+                }
+                inFrame = true;
+            } else if (inFrame && line.trim()) {
+                currentFrame.push(line.trim());
+            }
+        }
+        
+        if (currentFrame.length > 0) {
+            frames.push(parseGridLines(currentFrame, width, height));
+        }
+        
+        if (frames.length > 0) {
+            tests.push({
+                name: testName,
+                filename: testName.toLowerCase().replace(/\s+/g, '_') + '.seq',
+                sequence: { width, height, frames }
+            });
+        }
+    }
+    
+    return tests;
+}
+
+function parseGridLines(lines, width, height) {
+    const grid = [];
+    for (const line of lines) {
+        const row = [];
+        const chars = line.split(/\s+/);
+        for (const char of chars) {
+            const cellType = CHAR_TO_CELL[char];
+            if (cellType !== undefined) {
+                row.push(cellType);
+            }
+        }
+        if (row.length > 0) {
+            grid.push(row);
+        }
+    }
+    return grid;
+}
+
+/**
  * Load all .seq files from test_cases directory
  * @returns {Promise<Array<{name: string, filename: string, sequence: Object}>>}
  */
 export async function loadAllTests() {
+    // Check for custom test suite in localStorage first
+    const customTestSuite = localStorage.getItem('customTestSuite');
+    if (customTestSuite) {
+        try {
+            const tests = parseTestSuite(customTestSuite);
+            console.log('✅ Loaded tests from custom configuration:', tests.length, 'tests');
+            return tests;
+        } catch (error) {
+            console.error('❌ Failed to parse custom test suite:', error);
+            // Fall through to load from files
+        }
+    }
+    
     // Load manifest file
     const manifestResponse = await fetch('test_cases/manifest.json');
     const seqFiles = await manifestResponse.json();

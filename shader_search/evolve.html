@@ -285,7 +285,75 @@
             image-rendering: pixelated;
             image-rendering: crisp-edges;
         }
+        
+        .editors-section {
+            background: #2d2d30;
+            padding: 20px;
+            border-radius: 8px;
+            border: 1px solid #3e3e42;
+            margin-bottom: 20px;
+        }
+        
+        .editors-section h2 {
+            margin-bottom: 15px;
+            color: #ce9178;
+            cursor: pointer;
+            user-select: none;
+        }
+        
+        .editors-section h2:hover {
+            color: #dfa77b;
+        }
+        
+        .editors-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-top: 15px;
+        }
+        
+        .editor-panel {
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .editor-panel h3 {
+            color: #9cdcfe;
+            margin-bottom: 10px;
+            font-size: 14px;
+        }
+        
+        .editor-wrapper {
+            border: 1px solid #3e3e42;
+            border-radius: 4px;
+            overflow: hidden;
+            height: 400px;
+        }
+        
+        .editor-actions {
+            margin-top: 10px;
+            display: flex;
+            gap: 10px;
+        }
+        
+        .editor-actions button {
+            padding: 8px 16px;
+            font-size: 12px;
+        }
+        
+        .collapsed-content {
+            display: none;
+        }
+        
+        .expand-indicator {
+            float: right;
+            font-size: 14px;
+        }
     </style>
+    
+    <!-- Monaco Editor -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.44.0/min/vs/editor/editor.main.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.44.0/min/vs/loader.min.js"></script>
 </head>
 <body>
     <canvas id="canvas" width="256" height="256"></canvas>
@@ -360,6 +428,29 @@
         </div>
     </div>
     
+    <div class="editors-section">
+        <h2 onclick="toggleEditors()">
+            📝 Configuration Editors
+            <span class="expand-indicator" id="editorsExpandIndicator">▲</span>
+        </h2>
+        <div id="editorsContent">
+            <div class="editors-container">
+                <div class="editor-panel">
+                    <h3>Test Suite</h3>
+                    <div class="editor-wrapper" id="testSuiteEditor"></div>
+                </div>
+                <div class="editor-panel">
+                    <h3>Simulation Class</h3>
+                    <div class="editor-wrapper" id="simulationClassEditor"></div>
+                </div>
+            </div>
+            <div style="margin-top: 15px; display: flex; gap: 10px;">
+                <button onclick="applyConfiguration()" style="background: #4ec9b0;">✓ Apply Configuration</button>
+                <button onclick="resetConfiguration()" style="background: #666;">↺ Reset to Defaults</button>
+            </div>
+        </div>
+    </div>
+    
     <div class="best-solution">
         <h2>🏆 Best Solution</h2>
         <button id="copyShaderBtn" style="margin-bottom: 10px;">📋 Copy Shader</button>
@@ -396,6 +487,37 @@
         let ga = null;
         let running = false;
         let totalEvaluations = 0;
+        
+        // Monaco Editor instances
+        let testSuiteEditor = null;
+        let simulationClassEditor = null;
+        let editorsInitialized = false;
+        
+        // Default simulation class configuration
+        const defaultSimulationClass = `// Cell type constants
+const CellType = {
+    EMPTY: 0,
+    SAND: 1,
+    STONE: 2
+};
+
+TestSimulation = class extends GridSimulation {
+    static CellType = {
+        EMPTY: new Float32Array([0, 0, 0, 0]),
+        SAND: new Float32Array([1, 0, 0, 0]),
+        STONE: new Float32Array([2, 0, 0, 0])
+    }
+    
+    constructor(width, height, fragmentShader) {
+        super({
+            width,
+            height,
+            canvas: document.getElementById('canvas'),
+            rule: fragmentShader,
+            initialState: new Float32Array(width * height * 4)
+        });
+    }
+}`;
         
         // UI elements
         const startBtn = document.getElementById('startBtn');
@@ -727,7 +849,124 @@
             }
         }
         
+        // Monaco Editor Functions
+        async function initializeEditors() {
+            if (editorsInitialized) return;
+            
+            require.config({ paths: { vs: 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.44.0/min/vs' }});
+            require(['vs/editor/editor.main'], async function() {
+                // Test Suite Editor
+                testSuiteEditor = monaco.editor.create(document.getElementById('testSuiteEditor'), {
+                    value: '// Loading...',
+                    language: 'plaintext',
+                    theme: 'vs-dark',
+                    automaticLayout: true,
+                    minimap: { enabled: false },
+                    fontSize: 12
+                });
+                
+                // Simulation Class Editor - load from localStorage if available
+                const savedSimulationClass = localStorage.getItem('customSimulationClass');
+                simulationClassEditor = monaco.editor.create(document.getElementById('simulationClassEditor'), {
+                    value: savedSimulationClass || defaultSimulationClass,
+                    language: 'javascript',
+                    theme: 'vs-dark',
+                    automaticLayout: true,
+                    minimap: { enabled: false },
+                    fontSize: 12,
+                    lineNumbers: 'on'
+                });
+                
+                editorsInitialized = true;
+                
+                // Load test suite - from localStorage or file
+                try {
+                    const savedTestSuite = localStorage.getItem('customTestSuite');
+                    if (savedTestSuite) {
+                        testSuiteEditor.setValue(savedTestSuite);
+                        log('✅ Loaded custom test suite from configuration', 'success');
+                    } else {
+                        const response = await fetch('test_suite.txt');
+                        const text = await response.text();
+                        testSuiteEditor.setValue(text);
+                        log('✅ Loaded test suite', 'success');
+                    }
+                } catch (error) {
+                    log('❌ Failed to load test suite: ' + error.message, 'error');
+                }
+                
+                // Log if custom configuration is active
+                if (savedSimulationClass) {
+                    log('✅ Using custom simulation class', 'success');
+                }
+            });
+        }
+        
+        window.toggleEditors = function() {
+            const content = document.getElementById('editorsContent');
+            const indicator = document.getElementById('editorsExpandIndicator');
+            
+            if (content.classList.contains('collapsed-content')) {
+                content.classList.remove('collapsed-content');
+                indicator.textContent = '▲';
+            } else {
+                content.classList.add('collapsed-content');
+                indicator.textContent = '▼';
+            }
+        };
+        
+        window.applyConfiguration = async function() {
+            if (running) {
+                log('⚠️ Stop evolution before applying configuration', 'error');
+                return;
+            }
+            
+            try {
+                if (!testSuiteEditor || !simulationClassEditor) {
+                    log('❌ Editors not initialized', 'error');
+                    return;
+                }
+                
+                const testSuiteContent = testSuiteEditor.getValue();
+                const simulationClassContent = simulationClassEditor.getValue();
+                
+                // Save the edited test suite to localStorage for the test runner to pick up
+                localStorage.setItem('customTestSuite', testSuiteContent);
+                localStorage.setItem('customSimulationClass', simulationClassContent);
+                
+                // Force reload the page to apply changes
+                log('🔄 Applying configuration... Page will reload', 'success');
+                await new Promise(resolve => setTimeout(resolve, 500));
+                window.location.reload();
+            } catch (error) {
+                log('❌ Failed to apply configuration: ' + error.message, 'error');
+            }
+        };
+        
+        window.resetConfiguration = async function() {
+            if (running) {
+                log('⚠️ Stop evolution before resetting configuration', 'error');
+                return;
+            }
+            
+            try {
+                // Clear custom configuration
+                localStorage.removeItem('customTestSuite');
+                localStorage.removeItem('customSimulationClass');
+                
+                // Reload the page
+                log('↺ Resetting to defaults... Page will reload', 'success');
+                await new Promise(resolve => setTimeout(resolve, 500));
+                window.location.reload();
+            } catch (error) {
+                log('❌ Failed to reset configuration: ' + error.message, 'error');
+            }
+        };
+        
         log('✅ Ready to start evolution', 'success');
+        
+        // Initialize editors on page load
+        initializeEditors();
     </script>
 </body>
 </html>

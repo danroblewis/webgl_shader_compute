@@ -1,54 +1,45 @@
 import { GridSimulation } from '../grid-simulation.js';
 import { loadAllTests } from './seq-parser.js';
 
-// Cell type constants
-const CellType = {
+// Cell type constants - can be overridden by custom configuration
+let CellType = {
     EMPTY: 0,
     SAND: 1,
     STONE: 2
 };
 
-// Test simulation class - extends GridSimulation with single-value cell API
-class TestSimulation extends GridSimulation {
-    constructor(width, height, fragmentShader) {
-        super({
-            width,
-            height,
-            canvas: document.getElementById('canvas'),
-            rule: fragmentShader,
-            initialState: new Float32Array(width * height * 4) // Empty
-        });
+// Check for custom simulation class in localStorage
+let TestSimulation;
+if (localStorage.getItem('customSimulationClass')) {
+    try {
+        // Evaluate the custom simulation class code
+        eval(localStorage.getItem('customSimulationClass'));
+        console.log('✅ Loaded custom simulation class from configuration');
+    } catch (error) {
+        console.error('❌ Failed to load custom simulation class:', error);
     }
-    
-    // Override setCell to accept single value instead of RGBA array
-    setCell(x, y, value) {
-        // Convert single value to RGBA array
-        super.setCell(x, y, [value, 0, 0, 1]);
-    }
-    
-    // Add getCell method that returns single value
-    getCell(x, y) {
-        const rgba = this.getCellState(x, y);
-        return rgba[0]; // Return just the R component
-    }
-    
-    // Get entire grid as 2D array of single values
-    getGrid() {
-        const buffer = this.getCurrentBuffer();
-        
-        // Return grid in reading order (top to bottom)
-        // WebGL texture data is bottom-to-top, so we reverse it
-        const grid = [];
-        for (let y = this.height - 1; y >= 0; y--) {
-            const row = [];
-            for (let x = 0; x < this.width; x++) {
-                const idx = (y * this.width + x) * 4;
-                row.push(buffer[idx]); // Just the R component
-            }
-            grid.push(row);
+}
+
+// If no custom class, use default
+if (!TestSimulation) {
+    // Test simulation class - simple wrapper around GridSimulation
+    TestSimulation = class extends GridSimulation {
+        static CellType = {
+            EMPTY: new Float32Array([0, 0, 0, 0]),
+            SAND: new Float32Array([1, 0, 0, 0]),
+            STONE: new Float32Array([2, 0, 0, 0])
         }
-        return grid;
-    }
+        
+        constructor(width, height, fragmentShader) {
+            super({
+                width,
+                height,
+                canvas: document.getElementById('canvas'),
+                rule: fragmentShader,
+                initialState: new Float32Array(width * height * 4) // Empty
+            });
+        }
+    };
 }
 
 // Visualization
@@ -83,7 +74,9 @@ function gridToHTML(grid) {
     for (let y = 0; y < height; y++) {
         html += `<div style="display: flex; height: ${cellSize}px;">`;
         for (let x = 0; x < width; x++) {
-            const cell = grid[y][x];
+            const cellData = grid[y][x];
+            // Extract R component from RGBA array, or use value directly if not an array
+            const cell = Array.isArray(cellData) ? cellData[0] : cellData;
             const color = colors[cell] || '#ff00ff';
             html += `<div style="width: ${cellSize}px; height: ${cellSize}px; background-color: ${color}; border: 1px solid #00000033;"></div>`;
         }
@@ -104,12 +97,14 @@ function loadGridIntoSim(sim, grid) {
             const value = grid[y][x];
             // First line in file (y=0) should be at top (simY=height-1)
             const simY = grid.length - 1 - y;
-            sim.setCell(x, simY, value);
+            // Convert single value to RGBA array
+            sim.setCell(x, simY, [value, 0, 0, 1]);
         }
     }
 }
 
 // Helper to compare two grids
+// actual is RGBA arrays from getGrid(), expected is single values from .seq files
 function compareGrids(actual, expected) {
     if (actual.length !== expected.length) {
         return { match: false, reason: `Height mismatch: ${actual.length} vs ${expected.length}` };
@@ -121,12 +116,16 @@ function compareGrids(actual, expected) {
         }
         
         for (let x = 0; x < actual[y].length; x++) {
-            if (actual[y][x] !== expected[y][x]) {
+            // Extract R component from RGBA array for comparison
+            const actualValue = Array.isArray(actual[y][x]) ? actual[y][x][0] : actual[y][x];
+            const expectedValue = expected[y][x];
+            
+            if (actualValue !== expectedValue) {
                 // Convert to reading coordinates for error message
                 const readingY = actual.length - 1 - y;
                 return {
                     match: false,
-                    reason: `Cell mismatch at (${x}, ${readingY}): expected ${expected[y][x]}, got ${actual[y][x]}`
+                    reason: `Cell mismatch at (${x}, ${readingY}): expected ${expectedValue}, got ${actualValue}`
                 };
             }
         }
@@ -478,8 +477,8 @@ async function loadShader(path) {
     return await response.text();
 }
 
-// Main
-(async () => {
+// Main initialization function - can be called from files that import this
+async function initializeTestRunner() {
     const runner = new TestRunner();
     
     // Load the GLSL shader
@@ -613,8 +612,17 @@ async function loadShader(path) {
         window.TestRunner = TestRunner;
         window.testRunnerInstance = runner; // Export the actual initialized instance
     }
-})();
+    
+    return runner;
+}
+
+// Auto-initialize if loaded in browser (not imported as module)
+if (typeof window !== 'undefined' && document.readyState !== 'loading') {
+    initializeTestRunner();
+} else if (typeof window !== 'undefined') {
+    document.addEventListener('DOMContentLoaded', initializeTestRunner);
+}
 
 // Also export for use as ES module
-export { TestRunner, CellType };
+export { TestRunner, CellType, TestSimulation, initializeTestRunner };
 
