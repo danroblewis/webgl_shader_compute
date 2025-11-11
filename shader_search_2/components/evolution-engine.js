@@ -23,6 +23,7 @@ export class EvolutionEngine {
         this.bestFitness = 0;
         this.bestPassedTests = 0;
         this.isRunning = false;
+        this.isPaused = false;
         this.cancelled = false;
         
         this.generationCallbacks = [];
@@ -201,18 +202,30 @@ export class EvolutionEngine {
      */
     async start() {
         this.isRunning = true;
+        this.isPaused = false;
         this.cancelled = false;
-        this.generation = 0;
-        this.bestFitness = 0;
-        this.bestGenome = null;
-        this.bestPassedTests = 0;
+        
+        // Only initialize if starting fresh (not resuming)
+        if (this.generation === 0) {
+            this.bestFitness = 0;
+            this.bestGenome = null;
+            this.bestPassedTests = 0;
+            this.#initializePopulation();
+        }
         
         try {
-            // Initialize population
-            this.#initializePopulation();
-            
             // Evolution loop
-            for (let gen = 0; gen < this.options.maxGenerations; gen++) {
+            const startGen = this.generation;
+            for (let gen = startGen; gen < this.options.maxGenerations; gen++) {
+                if (this.cancelled) {
+                    break;
+                }
+                
+                // Check for pause
+                while (this.isPaused && !this.cancelled) {
+                    await new Promise(resolve => setTimeout(resolve, 100));
+                }
+                
                 if (this.cancelled) {
                     break;
                 }
@@ -254,9 +267,26 @@ export class EvolutionEngine {
             }
         } finally {
             this.isRunning = false;
+            this.isPaused = false;
         }
         
         return this.bestGenome;
+    }
+    
+    /**
+     * Pause evolution
+     */
+    pause() {
+        this.isPaused = true;
+        console.log('⏸️ Evolution paused at generation', this.generation);
+    }
+    
+    /**
+     * Resume evolution
+     */
+    resume() {
+        this.isPaused = false;
+        console.log('▶️ Evolution resumed from generation', this.generation);
     }
     
     /**
@@ -264,6 +294,7 @@ export class EvolutionEngine {
      */
     stop() {
         this.cancelled = true;
+        this.isPaused = false;
     }
     
     /**

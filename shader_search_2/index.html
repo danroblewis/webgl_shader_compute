@@ -64,6 +64,7 @@
             
             <div class="test-controls">
                 <button id="startEvoBtn" class="success">▶️ Start Evolution</button>
+                <button id="pauseEvoBtn" class="warning" disabled>⏸️ Pause</button>
                 <button id="stopEvoBtn" class="danger" disabled>⏹️ Stop</button>
             </div>
             
@@ -259,6 +260,7 @@
         function setupEventListeners() {
             // Evolution
             document.getElementById('startEvoBtn').addEventListener('click', startEvolution);
+            document.getElementById('pauseEvoBtn').addEventListener('click', pauseEvolution);
             document.getElementById('stopEvoBtn').addEventListener('click', stopEvolution);
             
             // Interactive simulation
@@ -289,6 +291,18 @@
 
         // Start evolution
         async function startEvolution() {
+            const startBtn = document.getElementById('startEvoBtn');
+            const pauseBtn = document.getElementById('pauseEvoBtn');
+            const stopBtn = document.getElementById('stopEvoBtn');
+            
+            // If paused, resume
+            if (app.evolutionEngine.isPaused) {
+                app.evolutionEngine.resume();
+                startBtn.textContent = '⏸️ Pause';
+                pauseBtn.disabled = false;
+                return;
+            }
+            
             // Update options
             app.evolutionEngine.updateOptions({
                 populationSize: parseInt(document.getElementById('popSize').value),
@@ -297,17 +311,36 @@
                 maxGenerations: parseInt(document.getElementById('maxGens').value)
             });
             
-            // Disable start, enable stop
-            document.getElementById('startEvoBtn').disabled = true;
-            document.getElementById('stopEvoBtn').disabled = false;
+            // Update button states
+            startBtn.disabled = true;
+            pauseBtn.disabled = false;
+            stopBtn.disabled = false;
             
             try {
                 await app.evolutionEngine.start();
             } catch (error) {
                 console.error('Evolution error:', error);
             } finally {
-                document.getElementById('startEvoBtn').disabled = false;
-                document.getElementById('stopEvoBtn').disabled = true;
+                startBtn.disabled = false;
+                startBtn.textContent = '▶️ Start Evolution';
+                pauseBtn.disabled = true;
+                pauseBtn.textContent = '⏸️ Pause';
+                stopBtn.disabled = true;
+            }
+        }
+
+        // Pause evolution
+        function pauseEvolution() {
+            const pauseBtn = document.getElementById('pauseEvoBtn');
+            
+            if (app.evolutionEngine.isPaused) {
+                // Resume
+                app.evolutionEngine.resume();
+                pauseBtn.textContent = '⏸️ Pause';
+            } else {
+                // Pause
+                app.evolutionEngine.pause();
+                pauseBtn.textContent = '▶️ Resume';
             }
         }
 
