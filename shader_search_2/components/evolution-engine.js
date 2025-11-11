@@ -35,8 +35,32 @@ export class EvolutionEngine {
     #initializePopulation() {
         this.population = [];
         for (let i = 0; i < this.options.populationSize; i++) {
-            this.population.push(new Genome());
+            const genome = new Genome();
+            
+            // Add some random starter rules to each genome
+            // Otherwise they all start empty and mutations barely add rules
+            const numStarterRules = 3 + Math.floor(Math.random() * 5); // 3-7 rules
+            
+            for (let r = 0; r < numStarterRules; r++) {
+                const cellType = [0, 1, 2][Math.floor(Math.random() * 3)]; // EMPTY, SAND, or STONE
+                
+                // Generate random pattern with some wildcards
+                const pattern = new Array(9).fill(0).map((_, idx) => {
+                    if (idx === 4) return cellType; // Center matches cell type
+                    return Math.random() < 0.5 ? -1 : // ANY wildcard
+                           [0, 1, 2][Math.floor(Math.random() * 3)]; // Random cell type
+                });
+                
+                // Random outcome
+                const becomes = [0, 1, 2][Math.floor(Math.random() * 3)];
+                
+                genome.addRule(cellType, pattern, becomes);
+            }
+            
+            this.population.push(genome);
         }
+        
+        console.log(`Initialized population of ${this.options.populationSize} genomes with random starter rules`);
     }
     
     /**
@@ -104,6 +128,7 @@ export class EvolutionEngine {
             
             // Update best if this is better
             if (result.fitness > this.bestFitness) {
+                console.log(`🎉 New best genome! Fitness: ${result.fitness.toFixed(2)} (was ${this.bestFitness.toFixed(2)}), Passed: ${result.passed}/${result.passed + result.failed}`);
                 this.bestFitness = result.fitness;
                 this.bestGenome = genome;
                 this.bestPassedTests = result.passed;
@@ -199,6 +224,10 @@ export class EvolutionEngine {
                 
                 // Calculate average fitness
                 const avgFitness = fitnesses.reduce((sum, f) => sum + f.fitness, 0) / fitnesses.length;
+                const maxFitness = Math.max(...fitnesses.map(f => f.fitness));
+                const minFitness = Math.min(...fitnesses.map(f => f.fitness));
+                
+                console.log(`Gen ${this.generation}: Fitness range [${minFitness.toFixed(2)} - ${maxFitness.toFixed(2)}], Avg: ${avgFitness.toFixed(2)}, Best overall: ${this.bestFitness.toFixed(2)}`);
                 
                 // Notify generation complete
                 this.#notifyGenerationCallbacks({
