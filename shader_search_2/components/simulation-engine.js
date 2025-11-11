@@ -100,9 +100,10 @@ export class SimulationEngine {
      * Run a single test case
      * @param {Object} testCase - {name, width, height, frames}
      * @param {boolean} detailed - If true, returns frame-by-frame comparison
+     * @param {boolean} fastMode - If true, only check final frame (much faster)
      * @returns {Object} - {passed, error, frames (if detailed)}
      */
-    runTest(testCase, detailed = false) {
+    runTest(testCase, detailed = false, fastMode = false) {
         const { width, height, frames } = testCase;
         const sim = this.#createSimulation(width, height);
         
@@ -126,7 +127,31 @@ export class SimulationEngine {
                 });
             }
             
-            // Run simulation and compare each frame
+            // Fast mode: only check final frame (avoids GPU-CPU transfers on intermediate frames)
+            if (fastMode && !detailed) {
+                // Run all steps without reading GPU data
+                for (let i = 1; i < frames.length; i++) {
+                    sim.step(1);
+                }
+                
+                // Only read GPU data for final frame
+                const finalGrid = sim.getGrid();
+                const check = this.#compareGrids(finalGrid, frames[frames.length - 1]);
+                
+                if (check.match) {
+                    // If final frame matches, assume all transitions were correct
+                    results.correctTransitions = results.totalTransitions;
+                } else {
+                    results.passed = false;
+                    results.error = `Final frame mismatch: ${check.reason}`;
+                    results.correctTransitions = 0;
+                }
+                
+                sim.dispose();
+                return results;
+            }
+            
+            // Normal/detailed mode: check each frame
             for (let i = 1; i < frames.length; i++) {
                 sim.step(1);
                 const actualGrid = sim.getGrid();
@@ -174,9 +199,10 @@ export class SimulationEngine {
     /**
      * Run all test cases
      * @param {Array} testCases
+     * @param {boolean} fastMode - If true, only check final frames (much faster)
      * @returns {Object} - {passed, failed, total, results}
      */
-    runAllTests(testCases) {
+    runAllTests(testCases, fastMode = false) {
         let passed = 0;
         let failed = 0;
         let correctTransitions = 0;
@@ -184,7 +210,7 @@ export class SimulationEngine {
         const results = [];
         
         for (const testCase of testCases) {
-            const result = this.runTest(testCase, false);
+            const result = this.runTest(testCase, false, fastMode);
             results.push({
                 name: testCase.name,
                 ...result

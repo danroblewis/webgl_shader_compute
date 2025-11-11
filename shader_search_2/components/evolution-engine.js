@@ -79,7 +79,8 @@ export class EvolutionEngine {
         );
         
         try {
-            const results = tempEngine.runAllTests(tests);
+            // Use fast mode for evolution (only check final frames - much faster!)
+            const results = tempEngine.runAllTests(tests, true);
             
             // Fitness = correct transitions + bonus for fully passing tests
             let fitness = results.correctTransitions;
