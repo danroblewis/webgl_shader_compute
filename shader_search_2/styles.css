@@ -1,0 +1,383 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background-color: #1e1e1e;
+    color: #d4d4d4;
+    padding: 20px;
+}
+
+.container {
+    max-width: 1800px;
+    margin: 0 auto;
+}
+
+/* Header */
+.header {
+    text-align: center;
+    margin-bottom: 30px;
+}
+
+.header h1 {
+    font-size: 2.5em;
+    margin-bottom: 10px;
+    color: #4ec9b0;
+}
+
+.header p {
+    color: #858585;
+}
+
+/* Panels */
+.panel {
+    background-color: #252526;
+    border: 1px solid #3e3e42;
+    border-radius: 8px;
+    padding: 20px;
+    margin-bottom: 20px;
+}
+
+.panel-header {
+    font-size: 1.3em;
+    font-weight: 600;
+    margin-bottom: 15px;
+    color: #4ec9b0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+/* Code Editors */
+.editor-wrapper {
+    border: 1px solid #3e3e42;
+    border-radius: 4px;
+}
+
+.editor-label {
+    font-size: 0.9em;
+    color: #858585;
+    margin-bottom: 5px;
+}
+
+/* Test Runner */
+.test-controls {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 15px;
+}
+
+.test-results {
+    background-color: #1e1e1e;
+    border: 1px solid #3e3e42;
+    border-radius: 4px;
+    padding: 10px;
+    margin-bottom: 15px;
+}
+
+.test-list {
+    max-height: 400px;
+    overflow-y: auto;
+    margin-bottom: 15px;
+}
+
+.test-item {
+    background-color: #1e1e1e;
+    border-left: 3px solid #3e3e42;
+    padding: 8px 12px;
+    margin-bottom: 5px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.test-item:hover {
+    background-color: #2d2d30;
+}
+
+.test-item.passed {
+    border-left-color: #4ec9b0;
+}
+
+.test-item.failed {
+    border-left-color: #f48771;
+}
+
+.test-detail {
+    background-color: #1e1e1e;
+    border: 1px solid #3e3e42;
+    border-radius: 4px;
+    padding: 15px;
+}
+
+.test-detail-controls {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    margin-bottom: 15px;
+}
+
+.frame-info {
+    flex: 1;
+    text-align: center;
+    color: #858585;
+}
+
+/* Evolution */
+.evolution-params {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-bottom: 15px;
+}
+
+.param-group {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.param-label {
+    font-size: 0.9em;
+    color: #858585;
+}
+
+.param-input {
+    background-color: #3c3c3c;
+    border: 1px solid #3e3e42;
+    color: #d4d4d4;
+    padding: 6px 10px;
+    border-radius: 4px;
+    font-size: 0.95em;
+}
+
+.evolution-stats {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-bottom: 15px;
+}
+
+.stat-box {
+    background-color: #1e1e1e;
+    border: 1px solid #3e3e42;
+    border-radius: 4px;
+    padding: 10px;
+    text-align: center;
+}
+
+.stat-label {
+    font-size: 0.8em;
+    color: #858585;
+    margin-bottom: 5px;
+}
+
+.stat-value {
+    font-size: 1.5em;
+    font-weight: 600;
+    color: #4ec9b0;
+}
+
+/* Interactive Canvas */
+.interactive-sim {
+    background-color: #1e1e1e;
+    border: 1px solid #3e3e42;
+    border-radius: 4px;
+    padding: 15px;
+}
+
+.canvas-wrapper {
+    text-align: center;
+    margin-bottom: 15px;
+}
+
+#interactiveCanvas {
+    border: 1px solid #3e3e42;
+    cursor: crosshair;
+    image-rendering: pixelated;
+}
+
+.canvas-controls {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+    margin-bottom: 10px;
+}
+
+.paint-selector {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.paint-selector label {
+    font-size: 0.9em;
+    color: #858585;
+}
+
+.paint-selector select {
+    background-color: #3c3c3c;
+    border: 1px solid #3e3e42;
+    color: #d4d4d4;
+    padding: 4px 8px;
+    border-radius: 4px;
+}
+
+/* Bottom Section - Test Suite Editor */
+.bottom-section {
+    margin-top: 20px;
+}
+
+.bottom-section .panel {
+    padding: 20px;
+}
+
+.test-suite-editor {
+    border: 1px solid #3e3e42;
+    border-radius: 4px;
+    height: 400px;
+}
+
+/* Buttons */
+button {
+    background-color: #0e639c;
+    color: #ffffff;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.95em;
+    transition: all 0.2s;
+}
+
+button:hover {
+    background-color: #1177bb;
+}
+
+button:active {
+    background-color: #0d5689;
+}
+
+button:disabled {
+    background-color: #3c3c3c;
+    color: #858585;
+    cursor: not-allowed;
+}
+
+button.danger {
+    background-color: #a1260d;
+}
+
+button.danger:hover {
+    background-color: #c72e0d;
+}
+
+button.success {
+    background-color: #0e8c0e;
+}
+
+button.success:hover {
+    background-color: #14a114;
+}
+
+/* Grid Visualizer */
+#gridVisual {
+    min-height: 200px;
+    text-align: center;
+}
+
+.grid-display {
+    display: inline-grid;
+    gap: 0;
+    border: 1px solid #3e3e42;
+    padding: 5px;
+    margin: 0 auto;
+}
+
+.grid-cell {
+    width: 10px;
+    height: 10px;
+    border: 0.5px solid #0003;
+}
+
+.comparison-view {
+    display: flex;
+    gap: 20px;
+    justify-content: center;
+    align-items: flex-start;
+}
+
+.comparison-side {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+}
+
+.comparison-label {
+    font-size: 0.9em;
+    color: #858585;
+    font-weight: 600;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar {
+    width: 10px;
+}
+
+::-webkit-scrollbar-track {
+    background: #1e1e1e;
+}
+
+::-webkit-scrollbar-thumb {
+    background: #3e3e42;
+    border-radius: 5px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: #4e4e52;
+}
+
+/* Status messages */
+.status-message {
+    padding: 10px;
+    border-radius: 4px;
+    margin-bottom: 10px;
+}
+
+.status-message.success {
+    background-color: #0e8c0e33;
+    border: 1px solid #0e8c0e;
+    color: #4ec9b0;
+}
+
+.status-message.error {
+    background-color: #f4877133;
+    border: 1px solid #f48771;
+    color: #f48771;
+}
+
+.status-message.info {
+    background-color: #0e639c33;
+    border: 1px solid #0e639c;
+    color: #569cd6;
+}
+
+/* Progress bar */
+.progress-bar {
+    width: 100%;
+    height: 6px;
+    background-color: #1e1e1e;
+    border-radius: 3px;
+    overflow: hidden;
+    margin-top: 10px;
+}
+
+.progress-fill {
+    height: 100%;
+    background-color: #4ec9b0;
+    transition: width 0.3s;
+}
+

@@ -1,0 +1,429 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🧬 Shader Search - Unified Interface</title>
+    <link rel="stylesheet" href="styles.css">
+    
+    <!-- Monaco Editor -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.44.0/min/vs/editor/editor.main.min.css">
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <h1>🧬 Shader Search - Unified Interface</h1>
+            <p>Evolutionary GLSL shader discovery for cellular automata</p>
+        </div>
+
+        <!-- Top Section: Code Editors -->
+        <div class="panel">
+            <div class="panel-header">💻 Code Editors</div>
+            
+            <div class="editor-label">Cell Type Definition</div>
+            <div class="editor-wrapper" id="cellTypeEditor" style="height: 150px; margin-bottom: 20px;"></div>
+            
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <div class="editor-label" id="shaderEditorLabel">Best Shader (GLSL)</div>
+                <button id="toggleShaderView" class="btn secondary" style="padding: 4px 12px; font-size: 0.85em;">
+                    📋 View Rules
+                </button>
+            </div>
+            <div class="editor-wrapper" id="shaderEditor" style="height: 600px;"></div>
+        </div>
+        
+        <!-- Test Editor Section -->
+        <div class="panel">
+            <div class="panel-header">🧪 Test Editor</div>
+            <div id="testEditor"></div>
+        </div>
+        
+        <!-- Evolution Section -->
+        <div class="panel">
+            <div class="panel-header">🧬 Evolution</div>
+            
+            <div class="evolution-params">
+                <div class="param-group">
+                    <label class="param-label">Population Size</label>
+                    <input type="number" id="popSize" class="param-input" value="20" min="2" max="100">
+                </div>
+                <div class="param-group">
+                    <label class="param-label">Elite Size</label>
+                    <input type="number" id="eliteSize" class="param-input" value="2" min="1" max="10">
+                </div>
+                <div class="param-group">
+                    <label class="param-label">Mutation Rate</label>
+                    <input type="number" id="mutationRate" class="param-input" value="0.7" min="0" max="1" step="0.1">
+                </div>
+                <div class="param-group">
+                    <label class="param-label">Max Generations</label>
+                    <input type="number" id="maxGens" class="param-input" value="100" min="1" max="1000">
+                </div>
+            </div>
+            
+            <div class="test-controls">
+                <button id="startEvoBtn" class="success">▶️ Start Evolution</button>
+                <button id="stopEvoBtn" class="danger" disabled>⏹️ Stop</button>
+            </div>
+            
+            <div class="evolution-stats">
+                <div class="stat-box">
+                    <div class="stat-label">Generation</div>
+                    <div class="stat-value" id="genStat">0</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-label">Best Fitness</div>
+                    <div class="stat-value" id="fitnessStat">0/0</div>
+                </div>
+            </div>
+            
+            <div class="progress-bar">
+                <div class="progress-fill" id="progressFill" style="width: 0%;"></div>
+            </div>
+        </div>
+        
+        <!-- Interactive Simulation Section -->
+        <div class="panel">
+            <div class="panel-header">🎮 Interactive Simulation</div>
+            
+            <div class="interactive-sim">
+                <div class="canvas-wrapper">
+                    <canvas id="interactiveCanvas" width="100" height="100" style="width: 300px; height: 300px;"></canvas>
+                </div>
+                
+                <div class="canvas-controls">
+                    <button id="simPlayBtn">▶️ Play</button>
+                    <button id="simStepBtn">⏯ Step</button>
+                    <button id="simClearBtn">🗑️ Clear</button>
+                    <button id="simRandomBtn">🎲 Random</button>
+                </div>
+                
+                <div class="paint-selector">
+                    <label>Paint:</label>
+                    <select id="paintMaterial">
+                        <option value="0">Empty</option>
+                        <option value="1" selected>Sand</option>
+                        <option value="2">Stone</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Hidden canvas for WebGL -->
+    <canvas id="glCanvas" width="100" height="100" style="display: none;"></canvas>
+
+    <!-- Monaco Editor -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.44.0/min/vs/loader.min.js"></script>
+    <script>
+        require.config({ paths: { vs: 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.44.0/min/vs' } });
+    </script>
+
+    <!-- Main Application -->
+    <script type="module">
+        import { SimulationEngine } from './components/simulation-engine.js';
+        import { TestManager } from './components/test-manager.js';
+        import { TestEditor } from './components/test-editor.js';
+        import { CodeEditor } from './components/code-editor.js';
+        import { InteractiveCanvas } from './components/interactive-canvas.js';
+        import { EvolutionEngine } from './components/evolution-engine.js';
+        import { Genome } from './lib/genome.js';
+
+        // Default cell type definition
+        const defaultCellTypes = `{
+    EMPTY: new Float32Array([0, 0, 0, 0]),
+    SAND: new Float32Array([1, 0, 0, 0]),
+    STONE: new Float32Array([2, 0, 0, 0])
+}`;
+
+        // Create starter rules (basic sand falling behavior)
+        function createStarterRules() {
+            const genome = new Genome();
+            // Stone never changes (no rules = stays the same)
+            // No rules needed for STONE
+            return genome;
+        }
+
+        const starterGenome = createStarterRules();
+        const defaultShader = starterGenome.toGLSL();
+
+        // Cell type colors
+        const cellTypeColors = {
+            0: '#1e1e1e',  // EMPTY
+            1: '#f4d03f',  // SAND
+            2: '#808080'   // STONE
+        };
+
+        // Global state
+        let app = {
+            testManager: null,
+            simulationEngine: null,
+            testEditor: null,
+            cellTypeEditor: null,
+            shaderEditor: null,
+            interactiveCanvas: null,
+            evolutionEngine: null,
+            currentBestGenome: null,
+            shaderViewMode: 'glsl' // 'glsl' or 'rules'
+        };
+
+        // Initialize application
+        async function init() {
+            console.log('🚀 Initializing application...');
+            
+            // Wait for Monaco
+            await new Promise((resolve) => {
+                require(['vs/editor/editor.main'], resolve);
+            });
+            
+            // Initialize managers
+            app.testManager = new TestManager();
+            await app.testManager.loadTests();
+            
+            // Initialize simulation engine
+            const canvas = document.getElementById('glCanvas');
+            app.simulationEngine = new SimulationEngine(defaultCellTypes, defaultShader, canvas);
+            
+            // Initialize test editor
+            app.testEditor = new TestEditor(
+                'testEditor',
+                app.testManager,
+                app.simulationEngine,
+                cellTypeColors
+            );
+            
+            // Initialize code editors
+            app.cellTypeEditor = new CodeEditor('cellTypeEditor', {
+                value: defaultCellTypes,
+                language: 'javascript',
+                fontSize: 11
+            });
+            
+            // Load saved genome rules if available
+            const savedRules = loadBestGenome();
+            let displayGenome;
+            
+            if (savedRules) {
+                // Reconstruct genome from saved rules
+                displayGenome = new Genome();
+                displayGenome.rules = savedRules;
+                app.currentBestGenome = displayGenome;
+            } else {
+                // Use starter genome
+                displayGenome = starterGenome;
+                app.currentBestGenome = starterGenome;
+            }
+            
+            const shaderValue = displayGenome.toGLSL();
+            
+            app.shaderEditor = new CodeEditor('shaderEditor', {
+                value: shaderValue,
+                language: 'cpp', // Use C++ for GLSL syntax highlighting
+                fontSize: 11,
+                readOnly: true  // GLSL is generated from rules, not manually editable
+            });
+            
+            // Initialize interactive canvas
+            app.interactiveCanvas = new InteractiveCanvas(
+                'interactiveCanvas',
+                app.simulationEngine,
+                cellTypeColors
+            );
+            
+            // Initialize evolution engine
+            app.evolutionEngine = new EvolutionEngine(
+                app.testManager,
+                app.simulationEngine,
+                {
+                    populationSize: 20,
+                    eliteSize: 2,
+                    mutationRate: 0.7,
+                    maxGenerations: 100
+                }
+            );
+            
+            // Setup event listeners
+            setupEventListeners();
+            
+            // Setup evolution callbacks
+            setupEvolutionCallbacks();
+            
+            // Initial test run
+            app.testEditor.runAllTests();
+            
+            console.log('✅ Application initialized');
+        }
+
+        // Setup event listeners
+        function setupEventListeners() {
+            // Evolution
+            document.getElementById('startEvoBtn').addEventListener('click', startEvolution);
+            document.getElementById('stopEvoBtn').addEventListener('click', stopEvolution);
+            
+            // Interactive simulation
+            document.getElementById('simPlayBtn').addEventListener('click', toggleSimulation);
+            document.getElementById('simStepBtn').addEventListener('click', () => app.interactiveCanvas.step());
+            document.getElementById('simClearBtn').addEventListener('click', () => app.interactiveCanvas.clear());
+            document.getElementById('simRandomBtn').addEventListener('click', () => app.interactiveCanvas.randomize());
+            document.getElementById('paintMaterial').addEventListener('change', (e) => {
+                app.interactiveCanvas.setPaintMaterial(parseInt(e.target.value));
+            });
+            
+            // Toggle shader view
+            document.getElementById('toggleShaderView').addEventListener('click', toggleShaderView);
+            
+            // Editor changes
+            app.cellTypeEditor.onDidChangeContent((value) => {
+                try {
+                    app.simulationEngine.updateCellTypes(value);
+                    app.testEditor.clearResults();
+                } catch (error) {
+                    console.error('Invalid cell type definition:', error);
+                }
+            });
+            
+            // Shader editor is read-only (generated from rules), so no change handler needed
+            // Changes only come from evolution updates
+        }
+
+        // Start evolution
+        async function startEvolution() {
+            // Update options
+            app.evolutionEngine.updateOptions({
+                populationSize: parseInt(document.getElementById('popSize').value),
+                eliteSize: parseInt(document.getElementById('eliteSize').value),
+                mutationRate: parseFloat(document.getElementById('mutationRate').value),
+                maxGenerations: parseInt(document.getElementById('maxGens').value)
+            });
+            
+            // Disable start, enable stop
+            document.getElementById('startEvoBtn').disabled = true;
+            document.getElementById('stopEvoBtn').disabled = false;
+            
+            try {
+                await app.evolutionEngine.start();
+            } catch (error) {
+                console.error('Evolution error:', error);
+            } finally {
+                document.getElementById('startEvoBtn').disabled = false;
+                document.getElementById('stopEvoBtn').disabled = true;
+            }
+        }
+
+        // Stop evolution
+        function stopEvolution() {
+            app.evolutionEngine.stop();
+        }
+
+        // Setup evolution callbacks
+        function setupEvolutionCallbacks() {
+            app.evolutionEngine.onGenerationComplete((data) => {
+                document.getElementById('genStat').textContent = data.generation;
+                document.getElementById('fitnessStat').textContent = 
+                    `${data.bestPassedTests}/${app.testManager.getTestCount()}`;
+                
+                const progress = (data.generation / app.evolutionEngine.options.maxGenerations) * 100;
+                document.getElementById('progressFill').style.width = `${progress}%`;
+                
+                // Update shader editor with best
+                if (data.bestGenome) {
+                    const newShader = data.bestGenome.toGLSL();
+                    
+                    // Save genome and shader
+                    app.currentBestGenome = data.bestGenome;
+                    saveBestGenome(data.bestGenome);
+                    
+                    // Only update editor if in GLSL mode
+                    if (app.shaderViewMode === 'glsl') {
+                        app.shaderEditor.setValue(newShader);
+                    }
+                    
+                    // Update simulation engine and run tests with the new shader
+                    try {
+                        app.simulationEngine.updateShader(newShader);
+                        app.interactiveCanvas.updateShader(newShader);
+                        app.testEditor.runAllTests();
+                    } catch (error) {
+                        console.error('Failed to apply evolved shader:', error);
+                    }
+                }
+            });
+        }
+
+        // Toggle simulation
+        function toggleSimulation() {
+            const btn = document.getElementById('simPlayBtn');
+            if (app.interactiveCanvas.isPlaying) {
+                app.interactiveCanvas.pause();
+                btn.textContent = '▶️ Play';
+            } else {
+                app.interactiveCanvas.play();
+                btn.textContent = '⏸️ Pause';
+            }
+        }
+
+        // Toggle shader view between GLSL and Rules
+        function toggleShaderView() {
+            const toggleBtn = document.getElementById('toggleShaderView');
+            const label = document.getElementById('shaderEditorLabel');
+            
+            if (app.shaderViewMode === 'glsl') {
+                // Switch to rules view
+                app.shaderViewMode = 'rules';
+                toggleBtn.textContent = '🔧 View GLSL';
+                label.textContent = 'Best Shader (Rules)';
+                
+                // Show rules if we have a genome
+                if (app.currentBestGenome) {
+                    const rulesJson = JSON.stringify(app.currentBestGenome.rules, null, 2);
+                    app.shaderEditor.setValue(rulesJson);
+                    app.shaderEditor.setLanguage('json');
+                    app.shaderEditor.setReadOnly(true);
+                } else {
+                    app.shaderEditor.setValue('// No genome rules available yet\n// Run evolution to generate rules');
+                    app.shaderEditor.setLanguage('cpp');
+                    app.shaderEditor.setReadOnly(true);
+                }
+            } else {
+                // Switch to GLSL view
+                app.shaderViewMode = 'glsl';
+                toggleBtn.textContent = '📋 View Rules';
+                label.textContent = 'Best Shader (GLSL)';
+                app.shaderEditor.setLanguage('cpp');
+                app.shaderEditor.setReadOnly(true);  // GLSL is always read-only (generated from rules)
+                
+                // Regenerate GLSL from current genome
+                if (app.currentBestGenome) {
+                    app.shaderEditor.setValue(app.currentBestGenome.toGLSL());
+                }
+            }
+        }
+
+        // Save genome rules to localStorage
+        function saveBestGenome(genome) {
+            try {
+                localStorage.setItem('bestGenomeRules', JSON.stringify(genome.rules));
+            } catch (error) {
+                console.error('Failed to save genome rules:', error);
+            }
+        }
+
+        // Load genome rules from localStorage
+        function loadBestGenome() {
+            try {
+                const rulesData = localStorage.getItem('bestGenomeRules');
+                if (rulesData) {
+                    return JSON.parse(rulesData);
+                }
+            } catch (error) {
+                console.error('Failed to load genome rules:', error);
+            }
+            return null;
+        }
+
+        // Initialize on load
+        init();
+    </script>
+</body>
+</html>

@@ -313,9 +313,9 @@
         <div class="sidebar">
             <h2 style="margin-top: 0;">Tests</h2>
             <div class="button-group" style="flex-direction: column;">
-                <button onclick="loadTestSuite()">📂 Load test_suite.txt</button>
-                <button onclick="createNewTest()" class="secondary">➕ New Test</button>
-            </div>
+        <button onclick="loadTestSuite()">📂 Load test_suite.txt</button>
+        <button onclick="createNewTest()" class="secondary">➕ New Test</button>
+    </div>
             <ul class="test-list" id="testList"></ul>
         </div>
         
@@ -323,25 +323,25 @@
             <div id="emptyState" class="empty-state">
                 <p>No test selected</p>
                 <p>Load a test suite or create a new test to begin</p>
-            </div>
-            
+    </div>
+    
             <div id="editorArea" style="display: none;">
-                <div class="editor-header">
+        <div class="editor-header">
                     <div>
                         <label style="margin-right: 10px;">Test Name:</label>
                         <input type="text" id="testName" placeholder="test_name" style="width: 300px;">
                     </div>
                     <button onclick="deleteCurrentTest()" class="danger">🗑️ Delete Test</button>
-                </div>
-                
+        </div>
+        
                 <div class="grid-controls">
-                    <label>Grid Size:</label>
+            <label>Grid Size:</label>
                     <input type="number" id="gridWidth" min="2" max="20" value="5" style="width: 60px;">
                     <span>×</span>
                     <input type="number" id="gridHeight" min="2" max="20" value="5" style="width: 60px;">
                     <button onclick="resizeGrid()" class="secondary">Resize</button>
-                </div>
-                
+        </div>
+        
                 <div class="cell-type-selector">
                     <span style="margin-right: 10px;">Paint:</span>
                     <div class="cell-type-btn empty active" onclick="selectCellType('empty')" title="Empty (1)">
@@ -356,13 +356,13 @@
                         #
                         <span class="hotkey">3</span>
                     </div>
-                </div>
-                
+        </div>
+        
                 <h3>Frames</h3>
-                <div class="frames-container" id="framesContainer"></div>
-                
+        <div class="frames-container" id="framesContainer"></div>
+        
                 <div class="button-group">
-                    <button onclick="addFrame()">➕ Add Frame</button>
+            <button onclick="addFrame()">➕ Add Frame</button>
                     <button onclick="duplicateLastFrame()" class="secondary">📋 Duplicate Last Frame</button>
                 </div>
                 
@@ -523,7 +523,7 @@
                 li.onclick = () => selectTest(index);
                 
                 li.innerHTML = `
-                    <div class="test-name">${test.name}</div>
+                        <div class="test-name">${test.name}</div>
                     <div class="test-info">${test.width}×${test.height} · ${test.frames.length} frames</div>
                 `;
                 listEl.appendChild(li);
@@ -603,12 +603,12 @@
         }
         
         function handleCellMouseDown(e) {
-            isDrawing = true;
+                        isDrawing = true;
             paintCell(e.target);
         }
         
         function handleCellMouseEnter(e) {
-            if (isDrawing) {
+                        if (isDrawing) {
                 paintCell(e.target);
             }
         }
@@ -714,7 +714,7 @@
                 currentTestIndex = -1;
                 renderTestList();
                 renderEditor();
-                updateExport();
+            updateExport();
                 showStatus('Test deleted!');
             }
         }
@@ -724,8 +724,8 @@
             if (currentTestIndex >= 0) {
                 tests[currentTestIndex].name = e.target.value;
                 renderTestList();
-                updateExport();
-            }
+            updateExport();
+        }
         });
         
         function updateExport() {
@@ -770,9 +770,9 @@
         document.addEventListener('keydown', (e) => {
             // Only handle number keys when not typing in an input
             if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') {
-                return;
-            }
-            
+                    return;
+                }
+                
             const cellTypes = ['empty', 'sand', 'stone'];
             const key = e.key;
             
@@ -780,7 +780,7 @@
                 const index = parseInt(key) - 1;
                 selectCellType(cellTypes[index]);
                 e.preventDefault();
-            }
+                    }
         });
         
         // Auto-load on page load
