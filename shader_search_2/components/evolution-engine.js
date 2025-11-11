@@ -1,5 +1,6 @@
 import { Genome } from '../lib/genome.js';
 import { mutate, crossover } from '../lib/evolution.js';
+import { GPUBatchTester } from './gpu-batch-tester.js';
 
 /**
  * EvolutionEngine - Orchestrates genetic algorithm for shader evolution
@@ -8,6 +9,13 @@ export class EvolutionEngine {
     constructor(testManager, simulationEngine, options = {}) {
         this.testManager = testManager;
         this.simulationEngine = simulationEngine;
+        
+        // Create GPU batch tester for fast evolution
+        this.batchTester = new GPUBatchTester(
+            simulationEngine.cellTypeDefinition,
+            simulationEngine.glslShader,
+            simulationEngine.canvas
+        );
         
         this.options = {
             populationSize: options.populationSize || 20,
@@ -65,30 +73,24 @@ export class EvolutionEngine {
     }
     
     /**
-     * Evaluate fitness of a genome
+     * Evaluate fitness of a genome using GPU batch testing
      */
     async #evaluateFitness(genome) {
         const glsl = genome.toGLSL();
         const tests = this.testManager.getTests();
         
-        // Create a temporary engine with this shader
-        const tempEngine = new this.simulationEngine.constructor(
-            this.simulationEngine.cellTypeDefinition,
-            glsl,
-            this.simulationEngine.canvas
-        );
+        // Update batch tester with new shader
+        this.batchTester.updateShader(glsl);
         
         try {
-            // Use fast mode for evolution (only check final frames - much faster!)
-            const results = tempEngine.runAllTests(tests, true);
+            // Use GPU batch tester - much faster than running tests individually!
+            const results = this.batchTester.runBatch(tests);
             
             // Fitness = correct transitions + bonus for fully passing tests
             let fitness = results.correctTransitions;
             if (results.total > 0) {
                 fitness += results.passed * (results.totalTransitions / results.total);
             }
-            
-            tempEngine.dispose();
             
             return {
                 fitness,
@@ -98,7 +100,6 @@ export class EvolutionEngine {
                 totalTransitions: results.totalTransitions
             };
         } catch (error) {
-            tempEngine.dispose();
             return {
                 fitness: 0,
                 passed: 0,
