@@ -3,7 +3,7 @@ import { TextureRenderer } from '../utils/textureRenderer.js'
 import { getCellTypesFromConfig } from '../utils/getCellTypesFromConfig.js'
 
 export const SimulationPanel = ({ simulation, config, selectedCellType = 0, onCellTypeChange }) => {
-  const [isPlaying, setIsPlaying] = React.useState(false) // Start paused so grid is empty
+  const [isPlaying, setIsPlaying] = React.useState(true) // Start playing by default
   const [error, setError] = React.useState(null)
   const [isDragging, setIsDragging] = React.useState(false)
   const displayCanvasRef = React.useRef(null)
@@ -146,6 +146,39 @@ ${conditionalBlock}
     }
   }, [handleWindowMouseUp])
 
+  // Function to resize canvas to fill container
+  const resizeCanvas = React.useCallback((canvas, container) => {
+    if (!canvas || !container) return
+    
+    // Get container dimensions
+    const containerRect = container.getBoundingClientRect()
+    const containerWidth = containerRect.width
+    const containerHeight = containerRect.height
+    
+    // Set canvas size to fill container (maintain aspect ratio if needed)
+    // For now, use full container size
+    const displayWidth = Math.floor(containerWidth)
+    const displayHeight = Math.floor(containerHeight)
+    
+    // Set canvas display size (CSS)
+    canvas.style.width = `${displayWidth}px`
+    canvas.style.height = `${displayHeight}px`
+    
+    // Set canvas internal resolution (for crisp rendering)
+    // Use device pixel ratio for high-DPI displays
+    const dpr = window.devicePixelRatio || 1
+    canvas.width = displayWidth * dpr
+    canvas.height = displayHeight * dpr
+    
+    // Update renderer viewport if it exists
+    if (rendererRef.current) {
+      const gl = rendererRef.current.gl
+      if (gl) {
+        gl.viewport(0, 0, canvas.width, canvas.height)
+      }
+    }
+  }, [])
+
   // Initialize renderer when canvas is ready
   React.useEffect(() => {
     if (!displayCanvasRef.current || !simulation) return
@@ -158,10 +191,6 @@ ${conditionalBlock}
         throw new Error('Simulation canvas not found')
       }
       
-      // Set canvas size for display
-      simCanvas.width = 500
-      simCanvas.height = 500
-      
       // Replace the display canvas ref with the simulation canvas
       // and append it to the DOM if not already there
       const container = displayCanvasRef.current.parentElement
@@ -173,6 +202,9 @@ ${conditionalBlock}
         // Add the simulation canvas
         container.appendChild(simCanvas)
         simCanvas.style.cssText = displayCanvasRef.current.style.cssText
+        // Make canvas fill container
+        simCanvas.style.width = '100%'
+        simCanvas.style.height = '100%'
         // Attach mouse handlers to the simulation canvas for click and drag
         simCanvas.addEventListener('mousedown', handleCanvasMouseDown)
         simCanvas.addEventListener('mousemove', handleCanvasMouseMove)
@@ -193,6 +225,11 @@ ${conditionalBlock}
         displayCanvasRef.current = simCanvas
       }
       
+      // Resize canvas to fill container
+      if (container) {
+        resizeCanvas(simCanvas, container)
+      }
+      
       // Get WebGL context from simulation (same context as texture)
       const gl = simulation.compute.getContext()
       if (!gl) {
@@ -208,25 +245,41 @@ ${conditionalBlock}
       if (fragmentShader && texture) {
         rendererRef.current.render(texture, fragmentShader)
       }
+      
+      // Handle window resize
+      const handleResize = () => {
+        if (container && simCanvas) {
+          resizeCanvas(simCanvas, container)
+          // Re-render after resize
+          const texture = simulation.getTexture()
+          const fragmentShader = getFragmentShader()
+          if (fragmentShader && texture && rendererRef.current) {
+            rendererRef.current.render(texture, fragmentShader)
+          }
+        }
+      }
+      
+      window.addEventListener('resize', handleResize)
+      
+      return () => {
+        window.removeEventListener('resize', handleResize)
+        // Remove mouse handlers on cleanup
+        if (displayCanvasRef.current && displayCanvasRef.current.removeEventListener) {
+          displayCanvasRef.current.removeEventListener('mousedown', handleCanvasMouseDown)
+          displayCanvasRef.current.removeEventListener('mousemove', handleCanvasMouseMove)
+          displayCanvasRef.current.removeEventListener('mouseup', handleCanvasMouseUp)
+          displayCanvasRef.current.removeEventListener('mouseleave', handleCanvasMouseLeave)
+        }
+        if (rendererRef.current) {
+          rendererRef.current.dispose()
+          rendererRef.current = null
+        }
+      }
     } catch (err) {
       console.error('Failed to initialize renderer:', err)
       setError(err.message)
     }
-    
-    return () => {
-      // Remove mouse handlers on cleanup
-      if (displayCanvasRef.current && displayCanvasRef.current.removeEventListener) {
-        displayCanvasRef.current.removeEventListener('mousedown', handleCanvasMouseDown)
-        displayCanvasRef.current.removeEventListener('mousemove', handleCanvasMouseMove)
-        displayCanvasRef.current.removeEventListener('mouseup', handleCanvasMouseUp)
-        displayCanvasRef.current.removeEventListener('mouseleave', handleCanvasMouseLeave)
-      }
-      if (rendererRef.current) {
-        rendererRef.current.dispose()
-        rendererRef.current = null
-      }
-    }
-  }, [simulation, getFragmentShader, handleCanvasMouseDown, handleCanvasMouseMove, handleCanvasMouseUp, handleCanvasMouseLeave])
+  }, [simulation, getFragmentShader, handleCanvasMouseDown, handleCanvasMouseMove, handleCanvasMouseUp, handleCanvasMouseLeave, resizeCanvas])
 
   // Animation loop
   React.useEffect(() => {

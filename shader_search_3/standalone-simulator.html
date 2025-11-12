@@ -1,0 +1,466 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Standalone Simulator</title>
+    <link rel="stylesheet" href="static/app.css" />
+    <script type="importmap">
+      {
+        "imports": {
+          "react": "https://esm.sh/react@18.2.0",
+          "react-dom": "https://esm.sh/react-dom@18.2.0",
+          "react-dom/client": "https://esm.sh/react-dom@18.2.0/client"
+        }
+      }
+    </script>
+    <script
+      src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.9/babel.min.js"
+      crossorigin="anonymous"
+      referrerpolicy="no-referrer"
+    ></script>
+  </head>
+  <body>
+    <header>
+      <h1>Standalone Simulator</h1>
+      <p>Load an evolution configuration JSON file to run the simulation</p>
+    </header>
+    <main id="root">
+      <noscript>You need JavaScript to run this application.</noscript>
+    </main>
+
+    <script type="module">
+      // Import React at the top level
+      import React from 'react'
+      import { createRoot } from 'react-dom/client'
+      
+      // Recursive JSX loader - same as index.html
+      const moduleCache = new Map()
+      
+      async function loadJSX(url, baseUrl = window.location.href) {
+        const fullUrl = new URL(url, baseUrl).href
+        if (moduleCache.has(fullUrl)) {
+          return moduleCache.get(fullUrl)
+        }
+        
+        const response = await fetch(fullUrl)
+        let code = await response.text()
+        
+        // Find all import statements
+        const importRegex = /import\s+([^'"]+)\s+from\s+['"]([^'"]+)['"]/g
+        const imports = []
+        let match
+        while ((match = importRegex.exec(code)) !== null) {
+          imports.push({ spec: match[1], from: match[2], full: match[0] })
+        }
+        
+        // Load all imports first
+        const importMap = {}
+        for (const { spec, from } of imports) {
+          let resolvedUrl = from
+          if (from.startsWith('./') || from.startsWith('../')) {
+            resolvedUrl = new URL(from, fullUrl).href
+          }
+          
+          let module
+          if (resolvedUrl.endsWith('.jsx') || (resolvedUrl.endsWith('.js') && (from.startsWith('./') || from.startsWith('../')))) {
+            module = await loadJSX(resolvedUrl, fullUrl)
+          } else {
+            const importMapEntry = document.querySelector('script[type="importmap"]')
+            let mapped = from
+            if (importMapEntry) {
+              const importMapData = JSON.parse(importMapEntry.textContent)
+              mapped = importMapData.imports?.[from] || from
+            }
+            module = await import(mapped)
+          }
+          
+          if (spec.startsWith('{')) {
+            const names = spec.slice(1, -1).split(',').map(s => s.trim())
+            names.forEach(name => {
+              const cleanName = name.split(' as ')[0].trim()
+              const alias = name.split(' as ')[1]?.trim()
+              const key = alias || cleanName
+              importMap[key] = module[cleanName] || (module.default && typeof module.default === 'object' ? module.default[cleanName] : undefined)
+            })
+          } else if (spec.startsWith('*')) {
+            const alias = spec.split(' as ')[1]?.trim() || 'default'
+            importMap[alias] = module
+          } else {
+            const varName = spec.trim()
+            importMap[varName] = module.default || module
+          }
+        }
+        
+        // Handle exports
+        const exportedConsts = []
+        const exportedFunctions = []
+        const exportedClasses = []
+        let defaultExportName = null
+        
+        const defaultExportMatch = code.match(/export\s+default\s+(?:function|const|class)\s+(\w+)/)
+        if (defaultExportMatch) {
+          defaultExportName = defaultExportMatch[1]
+        }
+        
+        code = code.replace(/export\s+default\s+/g, '')
+        code = code.replace(/export\s+const\s+(\w+)\s*=/g, (match, name) => {
+          exportedConsts.push(name)
+          return `const ${name} =`
+        })
+        code = code.replace(/export\s+function\s+(\w+)/g, (match, name) => {
+          exportedFunctions.push(name)
+          return `function ${name}`
+        })
+        code = code.replace(/export\s+class\s+(\w+)/g, (match, name) => {
+          exportedClasses.push(name)
+          return `class ${name}`
+        })
+        
+        // Replace imports
+        imports.forEach(({ spec, from, full }) => {
+          if (spec.startsWith('{')) {
+            const names = spec.slice(1, -1).split(',').map(s => s.trim())
+            const declarations = names.map(name => {
+              const cleanName = name.split(' as ')[0].trim()
+              const alias = name.split(' as ')[1]?.trim() || cleanName
+              return `const ${alias} = importMap['${alias}']`
+            }).join('; ')
+            code = code.replace(full, declarations)
+          } else if (spec.startsWith('*')) {
+            const alias = spec.split(' as ')[1]?.trim() || 'default'
+            code = code.replace(full, `const ${alias} = importMap['${alias}']`)
+          } else {
+            const varName = spec.trim()
+            code = code.replace(full, `const ${varName} = importMap['${varName}']`)
+          }
+        })
+        
+        // Transform JSX
+        const isJSX = fullUrl.endsWith('.jsx')
+        if (isJSX) {
+          code = Babel.transform(code, {
+            presets: ['react'],
+          }).code
+        }
+        
+        code = code.replace(/export\s+default\s+(\w+)(?!\s*\()/g, (match, name) => {
+          return `${name}; exports.default = ${name}`
+        })
+        code = code.replace(/export\s+default\s+/g, 'const __defaultExport = ')
+        
+        const allExports = [...exportedConsts, ...exportedFunctions, ...exportedClasses]
+        const exportStatements = []
+        if (allExports.length > 0) {
+          exportStatements.push(...allExports.map(name => `exports.${name} = ${name}`))
+        }
+        if (defaultExportName) {
+          exportStatements.push(`exports.default = ${defaultExportName}`)
+        }
+        code = code.replace(/export\s+\{([^}]+)\}/g, (match, names) => {
+          const exportStatements = names.split(',').map(n => {
+            const trimmed = n.trim()
+            const [name, alias] = trimmed.split(' as ')
+            const exportName = alias || name
+            return `exports.${exportName} = ${name}`
+          }).join('; ')
+          return exportStatements
+        })
+        
+        if (exportStatements.length > 0) {
+          const trimmedCode = code.trim()
+          const lastChar = trimmedCode[trimmedCode.length - 1]
+          let separator = ' '
+          if (lastChar === '}' || lastChar === ')') {
+            separator = '; '
+          } else if (lastChar !== ';') {
+            separator = '; '
+          }
+          code = trimmedCode + separator + exportStatements.join('; ')
+        }
+        
+        const exports = {}
+        const moduleObj = { exports }
+        
+        if (isJSX) {
+          const hasReactDeclared = /const\s+React\s*=/.test(code) || /let\s+React\s*=/.test(code) || /var\s+React\s*=/.test(code)
+          
+          let React = importMap['React'] || importMap['react']
+          if (!React && !hasReactDeclared) {
+            const importMapEntry = document.querySelector('script[type="importmap"]')
+            if (importMapEntry) {
+              const importMapData = JSON.parse(importMapEntry.textContent)
+              const reactUrl = importMapData.imports?.['react']
+              if (reactUrl) {
+                const reactModule = await import(reactUrl)
+                React = reactModule.default || reactModule
+              }
+            }
+          }
+          if (!hasReactDeclared) {
+            React = React || { createElement: () => {} }
+            const func = new Function('importMap', 'React', 'module', 'exports', code)
+            func(importMap, React, moduleObj, exports)
+          } else {
+            const func = new Function('importMap', 'module', 'exports', code)
+            func(importMap, moduleObj, exports)
+          }
+        } else {
+          const func = new Function('importMap', 'module', 'exports', code)
+          func(importMap, moduleObj, exports)
+        }
+        
+        moduleCache.set(fullUrl, exports)
+        return exports
+      }
+      
+      // Standalone App Component
+      const StandaloneApp = () => {
+        const [configs, setConfigs] = React.useState([])
+        const [selectedConfig, setSelectedConfig] = React.useState(null)
+        const [selectedCellType, setSelectedCellType] = React.useState(0)
+        const [simulation, setSimulation] = React.useState(null)
+        const [error, setError] = React.useState(null)
+        const [loading, setLoading] = React.useState(true)
+        const [componentsLoaded, setComponentsLoaded] = React.useState(false)
+        const [SimulationPanel, setSimulationPanel] = React.useState(null)
+        const [GlobalCellTypeSelector, setGlobalCellTypeSelector] = React.useState(null)
+        const [GridSimulation, setGridSimulation] = React.useState(null)
+        const [ruleSetToGLSL, setRuleSetToGLSL] = React.useState(null)
+        const [getCellTypesFromConfig, setGetCellTypesFromConfig] = React.useState(null)
+        
+        // Load components
+        React.useEffect(() => {
+          const loadComponents = async () => {
+            try {
+              // Determine base path - relative to this HTML file
+              const basePath = window.location.pathname.replace(/\/[^/]*$/, '/static/')
+              
+              // Load required modules
+              const gridSimModule = await loadJSX(basePath + 'grid-simulation.js')
+              setGridSimulation(() => gridSimModule.GridSimulation)
+              
+              const ruleSetGLSLModule = await loadJSX(basePath + 'utils/ruleSetToGLSL.js')
+              setRuleSetToGLSL(() => ruleSetGLSLModule.ruleSetToGLSL)
+              
+              const getCellTypesModule = await loadJSX(basePath + 'utils/getCellTypesFromConfig.js')
+              setGetCellTypesFromConfig(() => getCellTypesModule.getCellTypesFromConfig)
+              
+              const simPanelModule = await loadJSX(basePath + 'components/SimulationPanel.jsx')
+              setSimulationPanel(() => simPanelModule.SimulationPanel)
+              
+              const cellTypeSelectorModule = await loadJSX(basePath + 'components/GlobalCellTypeSelector.jsx')
+              setGlobalCellTypeSelector(() => cellTypeSelectorModule.GlobalCellTypeSelector)
+              
+              setComponentsLoaded(true)
+            } catch (err) {
+              console.error('Failed to load components:', err)
+              setError(`Failed to load components: ${err.message}. Make sure you're opening this file from the shader_search_3 directory, and that the static/ folder is accessible.`)
+              setLoading(false)
+            }
+          }
+          
+          loadComponents()
+        }, [])
+        
+        // Load evolution configs from data/evolution_configs.json
+        React.useEffect(() => {
+          const loadConfigs = async () => {
+            try {
+              setLoading(true)
+              setError(null)
+              
+              // Determine path to data folder - relative to this HTML file
+              const dataPath = window.location.pathname.replace(/\/[^/]*$/, '/data/evolution_configs.json')
+              const response = await fetch(dataPath)
+              
+              if (!response.ok) {
+                throw new Error(`Failed to load configs: ${response.status} ${response.statusText}`)
+              }
+              
+              const data = await response.json()
+              
+              if (!Array.isArray(data)) {
+                throw new Error('JSON must be an array of evolution configurations')
+              }
+              
+              setConfigs(data)
+              
+              if (data.length > 0) {
+                setSelectedConfig(data[0])
+              }
+            } catch (err) {
+              console.error('Failed to load configs:', err)
+              setError(`Failed to load evolution configs: ${err.message}. Make sure data/evolution_configs.json exists.`)
+              setConfigs([])
+            } finally {
+              setLoading(false)
+            }
+          }
+          
+          loadConfigs()
+        }, [])
+        
+        // Create simulation when config changes
+        React.useEffect(() => {
+          if (!selectedConfig || !GridSimulation || !ruleSetToGLSL || !componentsLoaded) return
+          
+          try {
+            const computeCanvas = document.createElement('canvas')
+            computeCanvas.width = 200
+            computeCanvas.height = 200
+            computeCanvas.id = 'simulation-canvas'
+            
+            // Generate GLSL shader from rule set
+            const glslShader = ruleSetToGLSL(selectedConfig.rule_set)
+            
+            // Evaluate the GridSimulation subclass code
+            let SimulationClass
+            try {
+              const evalCode = `
+                ${selectedConfig.grid_simulation_code}
+                return typeof StarterSimulation !== 'undefined' ? StarterSimulation : 
+                       typeof Simulation !== 'undefined' ? Simulation : null;
+              `
+              SimulationClass = new Function('GridSimulation', evalCode)(GridSimulation)
+              
+              if (!SimulationClass) {
+                SimulationClass = GridSimulation
+              }
+            } catch (evalError) {
+              console.warn('Failed to evaluate simulation code, using GridSimulation directly:', evalError)
+              SimulationClass = GridSimulation
+            }
+            
+            // Create simulation instance
+            const sim = new SimulationClass({
+              width: 200,
+              height: 200,
+              canvas: computeCanvas,
+              rule: glslShader,
+              initialState: 'empty',
+            })
+            
+            setSimulation(sim)
+            
+            return () => {
+              sim.dispose()
+            }
+          } catch (err) {
+            console.error('Failed to create simulation:', err)
+            setError(`Failed to create simulation: ${err.message}`)
+            setSimulation(null)
+            return () => {}
+          }
+        }, [selectedConfig, GridSimulation, ruleSetToGLSL, componentsLoaded])
+        
+        const handleConfigSelect = (event) => {
+          const index = parseInt(event.target.value)
+          if (index >= 0 && index < configs.length) {
+            setSelectedConfig(configs[index])
+          }
+        }
+        
+        // Get available cell types from selected config
+        const availableCellTypes = React.useMemo(() => {
+          if (!selectedConfig || !getCellTypesFromConfig) return []
+          return getCellTypesFromConfig(selectedConfig)
+        }, [selectedConfig, getCellTypesFromConfig])
+        
+        // Ensure selected cell type is valid for current config
+        React.useEffect(() => {
+          if (availableCellTypes.length > 0) {
+            const isValid = availableCellTypes.some(ct => ct.id === selectedCellType)
+            if (!isValid) {
+              // Reset to first available cell type
+              setSelectedCellType(availableCellTypes[0].id)
+            }
+          }
+        }, [availableCellTypes, selectedCellType])
+        
+        return React.createElement('div', { style: { display: 'flex', flexDirection: 'column', gap: '1.5rem' } },
+          React.createElement('div', { 
+            style: { 
+              background: 'rgba(15, 23, 42, 0.6)', 
+              padding: '1.5rem', 
+              borderRadius: '12px',
+              border: '1px solid rgba(148, 163, 184, 0.2)'
+            } 
+          },
+            loading && React.createElement('div', { 
+              style: { color: '#38bdf8', marginBottom: '1rem' }
+            }, 'Loading evolution configs...'),
+            configs.length > 0 && React.createElement('div', null,
+              React.createElement('label', { 
+                htmlFor: 'config-select',
+                style: { display: 'block', marginBottom: '0.5rem', color: '#e2e8f0', fontWeight: 500 }
+              }, 'Select Configuration:'),
+              React.createElement('select', {
+                id: 'config-select',
+                value: selectedConfig ? configs.indexOf(selectedConfig) : -1,
+                onChange: handleConfigSelect,
+                style: {
+                  width: '100%',
+                  padding: '0.5rem',
+                  background: 'rgba(15, 23, 42, 0.8)',
+                  border: '1px solid rgba(148, 163, 184, 0.4)',
+                  borderRadius: '6px',
+                  color: '#e2e8f0',
+                  fontSize: '1rem'
+                }
+              },
+                configs.map((config, index) =>
+                  React.createElement('option', { key: index, value: index }, config.name)
+                )
+              )
+            ),
+            error && React.createElement('div', { 
+              style: {
+                marginTop: '1rem',
+                color: '#f87171',
+                background: 'rgba(239, 68, 68, 0.1)',
+                borderLeft: '3px solid #ef4444',
+                padding: '0.75rem 1rem',
+                borderRadius: '6px'
+              }
+            }, error)
+          ),
+          selectedConfig && componentsLoaded && GlobalCellTypeSelector && availableCellTypes.length > 0 && React.createElement('div', {
+            style: {
+              background: 'rgba(15, 23, 42, 0.6)',
+              padding: '1.5rem',
+              borderRadius: '12px',
+              border: '1px solid rgba(148, 163, 184, 0.2)'
+            }
+          },
+            React.createElement(GlobalCellTypeSelector, {
+              selectedType: selectedCellType,
+              onSelectType: setSelectedCellType,
+              availableCellTypes: availableCellTypes
+            })
+          ),
+          selectedConfig && componentsLoaded && SimulationPanel && simulation && React.createElement('div', {
+            style: {
+              background: 'rgba(15, 23, 42, 0.6)',
+              padding: '1.5rem',
+              borderRadius: '12px',
+              border: '1px solid rgba(148, 163, 184, 0.2)'
+            }
+          },
+            React.createElement('h2', { style: { marginTop: 0, color: '#38bdf8' } }, selectedConfig.name),
+            React.createElement(SimulationPanel, {
+              simulation: simulation,
+              config: selectedConfig,
+              selectedCellType: selectedCellType,
+              onCellTypeChange: setSelectedCellType
+            })
+          )
+        )
+      }
+      
+      // Initialize
+      const root = createRoot(document.getElementById('root'))
+      root.render(React.createElement(StandaloneApp))
+    </script>
+  </body>
+</html>

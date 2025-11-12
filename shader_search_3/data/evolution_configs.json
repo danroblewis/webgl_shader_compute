@@ -4,10 +4,490 @@
     "description": "Baseline simulation with sand, water, stone, and empty cells.",
     "grid_simulation_code": "// Sample GridSimulation subclass for Shader Search 3\nclass StarterSimulation extends GridSimulation {\n  static CellType = {\n    EMPTY: new Float32Array([0, 0, 0, 0]),\n    SAND: new Float32Array([1, 0, 0, 0]),\n    WATER: new Float32Array([2, 0, 0, 0]),\n    STONE: new Float32Array([3, 0, 0, 0]),\n  };\n\n  constructor(options) {\n    super({\n      ...options,\n      cellTypes: StarterSimulation.CellType,\n    });\n  }\n}",
     "rule_set": {
-      "EMPTY": [],
-      "SAND": [],
-      "WATER": [],
-      "STONE": []
+      "EMPTY": [
+        {
+          "pattern": [
+            "*",
+            "*",
+            "*",
+            "*",
+            "EMPTY",
+            "EMPTY",
+            "EMPTY",
+            "WATER",
+            "*"
+          ],
+          "becomes": "WATER"
+        },
+        {
+          "pattern": [
+            "*",
+            "*",
+            "*",
+            "*",
+            "EMPTY",
+            "*",
+            "*",
+            "SAND",
+            "*"
+          ],
+          "becomes": "SAND"
+        },
+        {
+          "pattern": [
+            "*",
+            "*",
+            "*",
+            "*",
+            "EMPTY",
+            "*",
+            "*",
+            "SAND",
+            "*"
+          ],
+          "becomes": "SAND"
+        },
+        {
+          "pattern": [
+            "*",
+            "*",
+            "STONE",
+            "*",
+            "EMPTY",
+            "WATER",
+            "*",
+            "EMPTY",
+            "*"
+          ],
+          "becomes": "WATER"
+        },
+        {
+          "pattern": [
+            "SAND",
+            "*",
+            "*",
+            "*",
+            "EMPTY",
+            "EMPTY",
+            "EMPTY",
+            "WATER",
+            "*"
+          ],
+          "becomes": "WATER"
+        },
+        {
+          "pattern": [
+            "*",
+            "*",
+            "SAND",
+            "*",
+            "EMPTY",
+            "STONE",
+            "EMPTY",
+            "WATER",
+            "*"
+          ],
+          "becomes": "WATER"
+        },
+        {
+          "pattern": [
+            "*",
+            "*",
+            "*",
+            "*",
+            "EMPTY",
+            "*",
+            "*",
+            "SAND",
+            "*"
+          ],
+          "becomes": "SAND"
+        },
+        {
+          "pattern": [
+            "*",
+            "*",
+            "*",
+            "*",
+            "EMPTY",
+            "STONE",
+            "EMPTY",
+            "WATER",
+            "*"
+          ],
+          "becomes": "WATER"
+        },
+        {
+          "pattern": [
+            "*",
+            "*",
+            "*",
+            "*",
+            "EMPTY",
+            "EMPTY",
+            "EMPTY",
+            "WATER",
+            "*"
+          ],
+          "becomes": "WATER"
+        }
+      ],
+      "SAND": [
+        {
+          "pattern": [
+            "EMPTY",
+            "EMPTY",
+            "*",
+            "*",
+            "SAND",
+            "*",
+            "*",
+            "*",
+            "*"
+          ],
+          "becomes": "EMPTY"
+        },
+        {
+          "pattern": [
+            "STONE",
+            "*",
+            "STONE",
+            "*",
+            "SAND",
+            "*",
+            "*",
+            "SAND",
+            "*"
+          ],
+          "becomes": "EMPTY"
+        },
+        {
+          "pattern": [
+            "*",
+            "EMPTY",
+            "*",
+            "*",
+            "SAND",
+            "EMPTY",
+            "SAND",
+            "*",
+            "SAND"
+          ],
+          "becomes": "STONE"
+        },
+        {
+          "pattern": [
+            "*",
+            "*",
+            "*",
+            "*",
+            "SAND",
+            "*",
+            "SAND",
+            "*",
+            "WATER"
+          ],
+          "becomes": "EMPTY"
+        },
+        {
+          "pattern": [
+            "EMPTY",
+            "EMPTY",
+            "*",
+            "*",
+            "SAND",
+            "*",
+            "*",
+            "*",
+            "*"
+          ],
+          "becomes": "EMPTY"
+        },
+        {
+          "pattern": [
+            "STONE",
+            "*",
+            "STONE",
+            "*",
+            "SAND",
+            "*",
+            "*",
+            "SAND",
+            "*"
+          ],
+          "becomes": "EMPTY"
+        },
+        {
+          "pattern": [
+            "EMPTY",
+            "EMPTY",
+            "*",
+            "*",
+            "SAND",
+            "*",
+            "*",
+            "*",
+            "*"
+          ],
+          "becomes": "EMPTY"
+        },
+        {
+          "pattern": [
+            "*",
+            "EMPTY",
+            "*",
+            "*",
+            "*",
+            "EMPTY",
+            "SAND",
+            "*",
+            "SAND"
+          ],
+          "becomes": "STONE"
+        },
+        {
+          "pattern": [
+            "EMPTY",
+            "EMPTY",
+            "*",
+            "*",
+            "SAND",
+            "*",
+            "*",
+            "*",
+            "*"
+          ],
+          "becomes": "EMPTY"
+        },
+        {
+          "pattern": [
+            "STONE",
+            "*",
+            "STONE",
+            "*",
+            "SAND",
+            "*",
+            "*",
+            "SAND",
+            "*"
+          ],
+          "becomes": "EMPTY"
+        },
+        {
+          "pattern": [
+            "*",
+            "EMPTY",
+            "*",
+            "*",
+            "SAND",
+            "EMPTY",
+            "SAND",
+            "*",
+            "SAND"
+          ],
+          "becomes": "STONE"
+        },
+        {
+          "pattern": [
+            "*",
+            "EMPTY",
+            "*",
+            "*",
+            "SAND",
+            "*",
+            "SAND",
+            "*",
+            "SAND"
+          ],
+          "becomes": "STONE"
+        }
+      ],
+      "WATER": [
+        {
+          "pattern": [
+            "*",
+            "EMPTY",
+            "*",
+            "*",
+            "WATER",
+            "*",
+            "*",
+            "*",
+            "EMPTY"
+          ],
+          "becomes": "EMPTY"
+        },
+        {
+          "pattern": [
+            "EMPTY",
+            "*",
+            "*",
+            "WATER",
+            "WATER",
+            "*",
+            "EMPTY",
+            "*",
+            "*"
+          ],
+          "becomes": "WATER"
+        },
+        {
+          "pattern": [
+            "*",
+            "*",
+            "EMPTY",
+            "*",
+            "WATER",
+            "*",
+            "*",
+            "*",
+            "*"
+          ],
+          "becomes": "EMPTY"
+        },
+        {
+          "pattern": [
+            "*",
+            "EMPTY",
+            "*",
+            "*",
+            "WATER",
+            "*",
+            "*",
+            "*",
+            "EMPTY"
+          ],
+          "becomes": "EMPTY"
+        },
+        {
+          "pattern": [
+            "*",
+            "*",
+            "EMPTY",
+            "*",
+            "WATER",
+            "*",
+            "*",
+            "*",
+            "*"
+          ],
+          "becomes": "EMPTY"
+        },
+        {
+          "pattern": [
+            "*",
+            "WATER",
+            "STONE",
+            "*",
+            "WATER",
+            "EMPTY",
+            "*",
+            "*",
+            "*"
+          ],
+          "becomes": "EMPTY"
+        }
+      ],
+      "STONE": [
+        {
+          "pattern": [
+            "EMPTY",
+            "SAND",
+            "WATER",
+            "WATER",
+            "STONE",
+            "SAND",
+            "*",
+            "*",
+            "STONE"
+          ],
+          "becomes": "STONE"
+        },
+        {
+          "pattern": [
+            "EMPTY",
+            "SAND",
+            "WATER",
+            "WATER",
+            "STONE",
+            "SAND",
+            "*",
+            "*",
+            "STONE"
+          ],
+          "becomes": "SAND"
+        },
+        {
+          "pattern": [
+            "EMPTY",
+            "SAND",
+            "WATER",
+            "WATER",
+            "STONE",
+            "SAND",
+            "*",
+            "*",
+            "STONE"
+          ],
+          "becomes": "STONE"
+        },
+        {
+          "pattern": [
+            "*",
+            "SAND",
+            "WATER",
+            "WATER",
+            "STONE",
+            "SAND",
+            "*",
+            "*",
+            "STONE"
+          ],
+          "becomes": "SAND"
+        },
+        {
+          "pattern": [
+            "EMPTY",
+            "SAND",
+            "WATER",
+            "WATER",
+            "STONE",
+            "SAND",
+            "*",
+            "*",
+            "STONE"
+          ],
+          "becomes": "STONE"
+        },
+        {
+          "pattern": [
+            "EMPTY",
+            "SAND",
+            "WATER",
+            "WATER",
+            "STONE",
+            "SAND",
+            "*",
+            "*",
+            "STONE"
+          ],
+          "becomes": "STONE"
+        },
+        {
+          "pattern": [
+            "EMPTY",
+            "SAND",
+            "WATER",
+            "WATER",
+            "STONE",
+            "SAND",
+            "*",
+            "*",
+            "STONE"
+          ],
+          "becomes": "SAND"
+        }
+      ]
     },
     "id": "f547bcbd-1372-4b35-9957-4c5a1112c693"
   }
