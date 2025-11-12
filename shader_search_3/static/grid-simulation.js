@@ -35,7 +35,7 @@ class GridSimulation {
         this.kernel = this.compute.compileKernel(config.rule);
         
         // Create ping-pong buffers with zero initialization
-        const emptyData = new Float32Array(this.width * this.height * 4); // RGBA zeros
+        const emptyData = new Float32Array(this.width * this.height * 4); // RGBA zeros (all EMPTY)
         this.buffer0 = this.compute.createBuffer(this.width, this.height, emptyData);
         this.buffer1 = this.compute.createBuffer(this.width, this.height, emptyData);
         
@@ -54,10 +54,14 @@ class GridSimulation {
             const data = new Float32Array(this.width * this.height * 4);
             data.set(config.initialState);
             this.compute.upload(this.buffer0, data, this.width, this.height);
+            // Also ensure output buffer is empty
+            this.compute.upload(this.buffer1, emptyData, this.width, this.height);
             this.bufferDirty = true;
         } else {
-            // Default: empty (all zeros)
+            // Default: empty (all zeros) - ensure both buffers are empty
             this.clear();
+            // Also clear output buffer explicitly
+            this.compute.upload(this.buffer1, emptyData, this.width, this.height);
         }
     }
     
@@ -252,11 +256,15 @@ class GridSimulation {
     }
     
     /**
-     * Reset simulation to generation 0
+     * Reset simulation to generation 0 and clear all cells to EMPTY
      */
     reset() {
         this.generation = 0;
         this.clear();
+        // Also clear the output buffer to ensure both buffers are empty
+        const emptyData = new Float32Array(this.width * this.height * 4);
+        this.compute.upload(this.outputBuffer, emptyData, this.width, this.height);
+        this.bufferDirty = true;
     }
     
     // ============================================

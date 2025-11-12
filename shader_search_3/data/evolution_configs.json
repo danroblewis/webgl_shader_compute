@@ -14,7 +14,7 @@
             "EMPTY",
             "*",
             "*",
-            "SAND",
+            "*",
             "*"
           ],
           "becomes": "SAND"
@@ -28,7 +28,21 @@
             "EMPTY",
             "*",
             "*",
+            "*",
+            "*"
+          ],
+          "becomes": "SAND"
+        },
+        {
+          "pattern": [
+            "*",
+            "STONE",
+            "*",
+            "*",
+            "EMPTY",
             "WATER",
+            "*",
+            "*",
             "*"
           ],
           "becomes": "WATER"
@@ -42,12 +56,12 @@
             "*",
             "*",
             "SAND",
-            "*",
-            "*",
-            "EMPTY",
+            "STONE",
+            "STONE",
+            "SAND",
             "*"
           ],
-          "becomes": "EMPTY"
+          "becomes": "SAND"
         }
       ],
       "WATER": [
@@ -55,18 +69,61 @@
           "pattern": [
             "*",
             "*",
-            "*",
+            "SAND",
             "EMPTY",
             "WATER",
-            "EMPTY",
             "*",
-            "EMPTY",
+            "STONE",
+            "*",
             "*"
           ],
-          "becomes": "EMPTY"
+          "becomes": "STONE"
+        },
+        {
+          "pattern": [
+            "*",
+            "STONE",
+            "*",
+            "*",
+            "WATER",
+            "STONE",
+            "*",
+            "*",
+            "WATER"
+          ],
+          "becomes": "STONE"
+        },
+        {
+          "pattern": [
+            "*",
+            "*",
+            "WATER",
+            "*",
+            "WATER",
+            "STONE",
+            "*",
+            "*",
+            "WATER"
+          ],
+          "becomes": "STONE"
         }
       ],
-      "STONE": []
+      "STONE": [
+        {
+          "pattern": [
+            "WATER",
+            "*",
+            "*",
+            "*",
+            "STONE",
+            "WATER",
+            "WATER",
+            "*",
+            "*"
+          ],
+          "becomes": "WATER"
+        }
+      ]
     },
     "id": "f547bcbd-1372-4b35-9957-4c5a1112c693"
   }

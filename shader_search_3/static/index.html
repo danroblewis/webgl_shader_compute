@@ -112,6 +112,17 @@
         const exportedConsts = []
         const exportedFunctions = []
         const exportedClasses = []
+        let defaultExportName = null
+        
+        // Extract default export name BEFORE transformation (but handle export statement AFTER)
+        const defaultExportMatch = code.match(/export\s+default\s+(?:function|const|class)\s+(\w+)/)
+        if (defaultExportMatch) {
+          defaultExportName = defaultExportMatch[1]
+        }
+        
+        // Remove export default but keep the declaration - we'll handle it after JSX transform
+        code = code.replace(/export\s+default\s+/g, '')
+        
         code = code.replace(/export\s+const\s+(\w+)\s*=/g, (match, name) => {
           exportedConsts.push(name)
           return `const ${name} =`
@@ -155,18 +166,24 @@
           }).code
         }
         
+        code = code.replace(/export\s+const\s+\{([^}]+)\}\s*=/g, 'const {$1} =')
+        // For export default <identifier> (already declared variable/function) - handle AFTER JSX transform
+        code = code.replace(/export\s+default\s+(\w+)(?!\s*\()/g, (match, name) => {
+          return `${name}; exports.default = ${name}`
+        })
+        // For any remaining export default (shouldn't happen, but fallback)
+        code = code.replace(/export\s+default\s+/g, 'const __defaultExport = ')
+        
         // Add exports for exported consts, functions, and classes at the end of the code
         const allExports = [...exportedConsts, ...exportedFunctions, ...exportedClasses]
+        const exportStatements = []
         if (allExports.length > 0) {
-          const exportStatements = allExports.map(name => `exports.${name} = ${name}`).join('; ')
-          code = code + '; ' + exportStatements
+          exportStatements.push(...allExports.map(name => `exports.${name} = ${name}`))
         }
-        code = code.replace(/export\s+const\s+\{([^}]+)\}\s*=/g, 'const {$1} =')
-        // For export default, we need to keep it in local scope too
-        code = code.replace(/export\s+default\s+(\w+)/g, (match, name) => {
-          return `const __defaultExport = ${name}; exports.default = __defaultExport; ${name}`
-        })
-        code = code.replace(/export\s+default\s+/g, 'const __defaultExport = ')
+        // Handle default exports
+        if (defaultExportName) {
+          exportStatements.push(`exports.default = ${defaultExportName}`)
+        }
         // For named exports, replace with export statements but keep original code
         const namedExports = []
         code = code.replace(/export\s+\{([^}]+)\}/g, (match, names) => {
@@ -179,14 +196,31 @@
           namedExports.push(exportStatements)
           return '' // Remove the export statement, we'll add exports at the end
         })
-        // Add named export statements at the end
+        // Add all export statements at once at the end
+        const allExportStatements = [...exportStatements]
         if (namedExports.length > 0) {
-          code = code + '; ' + namedExports.join('; ')
+          allExportStatements.push(...namedExports)
+        }
+        if (allExportStatements.length > 0) {
+          const trimmedCode = code.trim()
+          // Add exports at the end - need semicolon if code ends with } or )
+          const lastChar = trimmedCode[trimmedCode.length - 1]
+          let separator = ' '
+          if (lastChar === '}' || lastChar === ')') {
+            separator = '; '
+          } else if (lastChar !== ';') {
+            separator = '; '
+          }
+          code = trimmedCode + separator + allExportStatements.join('; ')
         }
         
         // Execute module - make React available for JSX transformation (only for .jsx files)
         const exports = {}
         const moduleObj = { exports }
+        
+        // Debug: log code before execution
+        console.log(`[${fullUrl}] Code length: ${code.length}, isJSX: ${isJSX}`)
+        console.log(`[${fullUrl}] Code ends with:`, code.substring(Math.max(0, code.length - 100)))
         
         if (isJSX) {
           // Check if React is already declared in the code
@@ -210,17 +244,44 @@
           // If still no React and not declared, create a dummy (shouldn't happen)
           if (!hasReactDeclared) {
             React = React || { createElement: () => {} }
-            const func = new Function('importMap', 'React', 'module', 'exports', code)
-            func(importMap, React, moduleObj, exports)
+            try {
+              console.log(`Creating Function for ${fullUrl} (with React param)`)
+              const func = new Function('importMap', 'React', 'module', 'exports', code)
+              func(importMap, React, moduleObj, exports)
+            } catch (err) {
+              console.error(`Error executing ${fullUrl}:`, err)
+              console.error('Code length:', code.length)
+              console.error('Code snippet (first 1000 chars):', code.substring(0, 1000))
+              console.error('Code snippet (last 500 chars):', code.substring(Math.max(0, code.length - 500)))
+              throw err
+            }
           } else {
             // React is already declared in code, don't pass it as parameter
-            const func = new Function('importMap', 'module', 'exports', code)
-            func(importMap, moduleObj, exports)
+            try {
+              console.log(`Creating Function for ${fullUrl} (React already declared)`)
+              const func = new Function('importMap', 'module', 'exports', code)
+              func(importMap, moduleObj, exports)
+            } catch (err) {
+              console.error(`Error executing ${fullUrl}:`, err)
+              console.error('Code length:', code.length)
+              console.error('Code snippet (first 1000 chars):', code.substring(0, 1000))
+              console.error('Code snippet (last 500 chars):', code.substring(Math.max(0, code.length - 500)))
+              throw err
+            }
           }
         } else {
           // For .js files, no React needed
-          const func = new Function('importMap', 'module', 'exports', code)
-          func(importMap, moduleObj, exports)
+          try {
+            console.log(`Creating Function for ${fullUrl} (.js file)`)
+            const func = new Function('importMap', 'module', 'exports', code)
+            func(importMap, moduleObj, exports)
+          } catch (err) {
+            console.error(`Error executing ${fullUrl}:`, err)
+            console.error('Code length:', code.length)
+            console.error('Code snippet (first 1000 chars):', code.substring(0, 1000))
+            console.error('Code snippet (last 500 chars):', code.substring(Math.max(0, code.length - 500)))
+            throw err
+          }
         }
         
         moduleCache.set(fullUrl, exports)

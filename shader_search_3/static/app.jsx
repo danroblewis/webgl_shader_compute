@@ -5,6 +5,8 @@ import { TestEditor } from './components/TestEditor.jsx'
 import { GlobalCellTypeSelector } from './components/GlobalCellTypeSelector.jsx'
 import { SimulationPanel } from './components/SimulationPanel.jsx'
 import { TestBufferViewer } from './components/TestBufferViewer.jsx'
+import TestEvaluatorPanel from './components/TestEvaluatorPanel.jsx'
+import GeneticAlgorithmPanel from './components/GeneticAlgorithmPanel.jsx'
 import { getCellTypesFromConfig } from './utils/getCellTypesFromConfig.js'
 import { GridSimulation } from './grid-simulation.js'
 import { ruleSetToGLSL } from './utils/ruleSetToGLSL.js'
@@ -87,12 +89,33 @@ const App = () => {
       if (!res.ok) throw new Error('Failed to load configurations')
       const data = await res.json()
       setConfigs(data)
+      
+      // Auto-select the first config if none is selected
+      if (data.length > 0 && !selectedConfig) {
+        setSelectedConfig(data[0])
+      }
     } catch (err) {
       setConfigError(err.message)
     } finally {
       setConfigLoading(false)
     }
-  }, [])
+  }, [selectedConfig])
+  
+  const handleRefreshConfigs = useCallback(async () => {
+    // Refresh configs from API
+    const res = await fetch(`${API_BASE}/evolution-configs`)
+    if (!res.ok) throw new Error('Failed to load configurations')
+    const data = await res.json()
+    setConfigs(data)
+    
+    // If we have a selected config, update it
+    if (selectedConfig) {
+      const updatedConfig = data.find(c => c.id === selectedConfig.id)
+      if (updatedConfig) {
+        setSelectedConfig(updatedConfig)
+      }
+    }
+  }, [selectedConfig])
 
   const loadGroups = useCallback(async () => {
     try {
@@ -321,7 +344,13 @@ const App = () => {
         onSaveTest={handleSaveTest}
         onDeleteTest={handleDeleteTest}
       />
-      <TestBufferViewer groups={groups} />
+        <TestBufferViewer groups={groups} />
+        <TestEvaluatorPanel groups={groups} selectedConfig={selectedConfig} />
+        <GeneticAlgorithmPanel 
+          groups={groups} 
+          selectedConfig={selectedConfig}
+          onConfigUpdate={handleRefreshConfigs}
+        />
     </>
   )
 }

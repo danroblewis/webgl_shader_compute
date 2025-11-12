@@ -3,7 +3,7 @@ import { TextureRenderer } from '../utils/textureRenderer.js'
 import { getCellTypesFromConfig } from '../utils/getCellTypesFromConfig.js'
 
 export const SimulationPanel = ({ simulation, config, selectedCellType = 0, onCellTypeChange }) => {
-  const [isPlaying, setIsPlaying] = React.useState(true)
+  const [isPlaying, setIsPlaying] = React.useState(false) // Start paused so grid is empty
   const [error, setError] = React.useState(null)
   const [isDragging, setIsDragging] = React.useState(false)
   const displayCanvasRef = React.useRef(null)
@@ -307,6 +307,7 @@ ${conditionalBlock}
             onClick={() => {
               if (simulation) {
                 simulation.reset()
+                simulation.bufferDirty = true // Force re-render
                 render()
               }
             }}

@@ -1,4 +1,5 @@
 import { SectionHeader } from './SectionHeader.jsx'
+import RuleSetVisualizer from './RuleSetVisualizer.jsx'
 
 export const EvolutionConfigs = ({ 
   configs = [], 
@@ -25,6 +26,14 @@ export const EvolutionConfigs = ({
             <h3>{cfg.name}</h3>
             {cfg.description && <p>{cfg.description}</p>}
             <div className="meta">Identifier: {cfg.id}</div>
+            
+            {cfg.rule_set && (
+              <details open style={{ marginTop: '0.75rem' }} onClick={(e) => e.stopPropagation()}>
+                <summary>Rule Set</summary>
+                <RuleSetVisualizer ruleSet={cfg.rule_set} />
+              </details>
+            )}
+            
             <details style={{ marginTop: '0.75rem' }} onClick={(e) => e.stopPropagation()}>
               <summary>GridSimulation Code</summary>
               <pre style={{ whiteSpace: 'pre-wrap', marginTop: '0.75rem', fontSize: '0.82rem' }}>
