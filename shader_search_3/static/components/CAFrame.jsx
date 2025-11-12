@@ -1,6 +1,6 @@
 const CELL_SIZE = 20
 
-const CAFrame = ({ frame, channelIndex = 0 }) => {
+export const CAFrame = ({ frame, channelIndex = 0 }) => {
   if (!frame?.length) return null
 
   const palette = ['#0f172a', '#38bdf8', '#f97316', '#22c55e', '#94a3b8']

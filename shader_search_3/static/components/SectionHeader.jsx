@@ -1,4 +1,4 @@
-const SectionHeader = ({ title, onRefresh, loading }) => (
+export const SectionHeader = ({ title, onRefresh, loading }) => (
   <div
     style={{
       display: 'flex',

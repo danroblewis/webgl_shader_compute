@@ -11,6 +11,20 @@
       referrerpolicy="no-referrer"
     />
     <link rel="stylesheet" href="/static/app.css" />
+    <script type="importmap">
+      {
+        "imports": {
+          "react": "https://esm.sh/react@18.2.0",
+          "react-dom": "https://esm.sh/react-dom@18.2.0",
+          "react-dom/client": "https://esm.sh/react-dom@18.2.0/client"
+        }
+      }
+    </script>
+    <script
+      src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.9/babel.min.js"
+      crossorigin="anonymous"
+      referrerpolicy="no-referrer"
+    ></script>
   </head>
   <body>
     <header>
@@ -24,25 +38,170 @@
       Served by FastAPI • React via CDN • No build tooling required
     </footer>
 
-    <script
-      crossorigin
-      src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"
-    ></script>
-    <script
-      crossorigin
-      src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"
-    ></script>
-    <script
-      src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.9/babel.min.js"
-      crossorigin="anonymous"
-      referrerpolicy="no-referrer"
-    ></script>
-    <script type="text/babel" data-presets="react" src="/static/components/CAFrame.jsx"></script>
-    <script type="text/babel" data-presets="react" src="/static/components/CARun.jsx"></script>
-    <script type="text/babel" data-presets="react" src="/static/components/GridPreview.jsx"></script>
-    <script type="text/babel" data-presets="react" src="/static/components/SectionHeader.jsx"></script>
-    <script type="text/babel" data-presets="react" src="/static/components/EvolutionConfigs.jsx"></script>
-    <script type="text/babel" data-presets="react" src="/static/components/TestCaseGroups.jsx"></script>
-    <script type="text/babel" data-presets="react" src="/static/app.jsx"></script>
+    <script type="module">
+      // Recursive JSX loader - transforms JSX and handles nested imports
+      const moduleCache = new Map()
+      
+      async function loadJSX(url, baseUrl = window.location.href) {
+        const fullUrl = new URL(url, baseUrl).href
+        if (moduleCache.has(fullUrl)) {
+          return moduleCache.get(fullUrl)
+        }
+        
+        const response = await fetch(fullUrl)
+        let code = await response.text()
+        
+        // Find all import statements
+        const importRegex = /import\s+([^'"]+)\s+from\s+['"]([^'"]+)['"]/g
+        const imports = []
+        let match
+        while ((match = importRegex.exec(code)) !== null) {
+          imports.push({ spec: match[1], from: match[2], full: match[0] })
+        }
+        
+        // Load all imports first (recursively for JSX files, via importmap for React)
+        const importMap = {}
+        for (const { spec, from } of imports) {
+          let resolvedUrl = from
+          if (from.startsWith('./') || from.startsWith('../')) {
+            resolvedUrl = new URL(from, fullUrl).href
+          }
+          
+          let module
+          if (resolvedUrl.endsWith('.jsx')) {
+            // Load JSX file recursively
+            module = await loadJSX(resolvedUrl, fullUrl)
+          } else {
+            // Load non-JSX imports (React, etc.) via importmap
+            const importMapEntry = document.querySelector('script[type="importmap"]')
+            let mapped = from
+            if (importMapEntry) {
+              const importMapData = JSON.parse(importMapEntry.textContent)
+              mapped = importMapData.imports?.[from] || from
+            }
+            module = await import(mapped)
+          }
+          
+          // Store module in importMap by import spec
+          if (spec.startsWith('{')) {
+            // Named imports: { useState, useEffect } -> importMap['useState'], etc.
+            const names = spec.slice(1, -1).split(',').map(s => s.trim())
+            names.forEach(name => {
+              const cleanName = name.split(' as ')[0].trim()
+              const alias = name.split(' as ')[1]?.trim()
+              const key = alias || cleanName
+              // For named exports, get from module directly (module is the exports object for JSX files)
+              importMap[key] = module[cleanName] || (module.default && typeof module.default === 'object' ? module.default[cleanName] : undefined)
+              if (!importMap[key]) {
+                console.warn(`Could not find export '${cleanName}' in module`, module)
+              }
+            })
+          } else if (spec.startsWith('*')) {
+            // Namespace import: * as React
+            const alias = spec.split(' as ')[1]?.trim() || 'default'
+            importMap[alias] = module
+          } else {
+            // Default import: React
+            const varName = spec.trim()
+            importMap[varName] = module.default || module
+          }
+        }
+        
+        // Handle export statements BEFORE replacing imports and transforming
+        // Find all exported consts to add to exports later
+        const exportedConsts = []
+        code = code.replace(/export\s+const\s+(\w+)\s*=/g, (match, name) => {
+          exportedConsts.push(name)
+          return `const ${name} =`
+        })
+        
+        // Replace all imports with loaded modules from importMap
+        imports.forEach(({ spec, from, full }) => {
+          if (spec.startsWith('{')) {
+            // Named imports: { useState, useEffect } -> const useState = importMap['useState']; const useEffect = importMap['useEffect'];
+            const names = spec.slice(1, -1).split(',').map(s => s.trim())
+            const declarations = names.map(name => {
+              const cleanName = name.split(' as ')[0].trim()
+              const alias = name.split(' as ')[1]?.trim() || cleanName
+              return `const ${alias} = importMap['${alias}']`
+            }).join('; ')
+            code = code.replace(full, declarations)
+          } else if (spec.startsWith('*')) {
+            // Namespace import: * as React -> const React = importMap['React']
+            const alias = spec.split(' as ')[1]?.trim() || 'default'
+            code = code.replace(full, `const ${alias} = importMap['${alias}']`)
+          } else {
+            // Default import: React -> const React = importMap['React']
+            const varName = spec.trim()
+            code = code.replace(full, `const ${varName} = importMap['${varName}']`)
+          }
+        })
+        
+        // Transform JSX
+        code = Babel.transform(code, {
+          presets: ['react'],
+        }).code
+        
+        // Add exports for exported consts at the end of the code
+        if (exportedConsts.length > 0) {
+          const exportStatements = exportedConsts.map(name => `exports.${name} = ${name}`).join('; ')
+          code = code + '; ' + exportStatements
+        }
+        code = code.replace(/export\s+const\s+\{([^}]+)\}\s*=/g, 'const {$1} =')
+        // For export default, we need to keep it in local scope too
+        code = code.replace(/export\s+default\s+(\w+)/g, (match, name) => {
+          return `const __defaultExport = ${name}; exports.default = __defaultExport; ${name}`
+        })
+        code = code.replace(/export\s+default\s+/g, 'const __defaultExport = ')
+        // For named exports, add to exports but keep in local scope
+        code = code.replace(/export\s+\{([^}]+)\}/g, (match, names) => {
+          const exports = names.split(',').map(n => {
+            const trimmed = n.trim()
+            const [name, alias] = trimmed.split(' as ')
+            const exportName = alias || name
+            return `exports.${exportName} = ${name}`
+          }).join('; ')
+          return exports
+        })
+        
+        // Execute module - make React available for JSX transformation
+        const exports = {}
+        const moduleObj = { exports }
+        // Check if React is already declared in the code
+        const hasReactDeclared = /const\s+React\s*=/.test(code) || /let\s+React\s*=/.test(code) || /var\s+React\s*=/.test(code)
+        
+        // Extract React from importMap - check all possible keys
+        let React = importMap['React'] || importMap['react']
+        // If React wasn't imported directly, try to get it from the importmap
+        if (!React && !hasReactDeclared) {
+          const importMapEntry = document.querySelector('script[type="importmap"]')
+          if (importMapEntry) {
+            const importMapData = JSON.parse(importMapEntry.textContent)
+            const reactUrl = importMapData.imports?.['react']
+            if (reactUrl) {
+              // Import React on the fly if needed
+              const reactModule = await import(reactUrl)
+              React = reactModule.default || reactModule
+            }
+          }
+        }
+        // If still no React and not declared, create a dummy (shouldn't happen)
+        if (!hasReactDeclared) {
+          React = React || { createElement: () => {} }
+          const func = new Function('importMap', 'React', 'module', 'exports', code)
+          func(importMap, React, moduleObj, exports)
+        } else {
+          // React is already declared in code, don't pass it as parameter
+          const func = new Function('importMap', 'module', 'exports', code)
+          func(importMap, moduleObj, exports)
+        }
+        
+        moduleCache.set(fullUrl, exports)
+        return exports
+      }
+      
+      // Load app
+      await loadJSX('/static/app.jsx')
+    </script>
   </body>
 </html>

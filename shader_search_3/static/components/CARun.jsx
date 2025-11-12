@@ -1,4 +1,6 @@
-const CARun = ({ frames = [], showLabels = true, channelIndex = 0 }) => {
+import { CAFrame } from './CAFrame.jsx'
+
+export const CARun = ({ frames = [], showLabels = true, channelIndex = 0 }) => {
   if (!frames.length) return null
 
   return (

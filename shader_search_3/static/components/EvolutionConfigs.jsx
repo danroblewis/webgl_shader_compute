@@ -1,4 +1,6 @@
-const EvolutionConfigs = ({ configs = [], loading = false, error = null, onRefresh }) => (
+import { SectionHeader } from './SectionHeader.jsx'
+
+export const EvolutionConfigs = ({ configs = [], loading = false, error = null, onRefresh }) => (
   <section>
     <SectionHeader title="Evolution Configurations" onRefresh={onRefresh} loading={loading} />
     {error && <div className="error">{error}</div>}
