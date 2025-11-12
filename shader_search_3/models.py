@@ -7,6 +7,8 @@ from pydantic import BaseModel, Field, field_validator, model_validator
 
 
 class EvolutionConfigBase(BaseModel):
+    __test__ = False
+
     name: str = Field(..., description="Human-readable name")
     description: Optional[str] = Field(None, description="Optional description of this configuration")
     grid_simulation_code: str = Field(..., description="JavaScript code for the GridSimulation subclass")
@@ -14,10 +16,14 @@ class EvolutionConfigBase(BaseModel):
 
 
 class EvolutionConfigCreate(EvolutionConfigBase):
+    __test__ = False
+
     id: Optional[str] = Field(None, description="Optional identifier; generated if omitted")
 
 
 class EvolutionConfig(EvolutionConfigBase):
+    __test__ = False
+
     id: str = Field(default_factory=lambda: str(uuid4()))
 
     model_config = {
@@ -34,6 +40,8 @@ class EvolutionConfig(EvolutionConfigBase):
 
 
 class TestCaseBase(BaseModel):
+    __test__ = False
+
     name: str = Field(..., description="Test case name")
     width: int = Field(..., gt=0)
     height: int = Field(..., gt=0)
@@ -64,24 +72,34 @@ class TestCaseBase(BaseModel):
 
 
 class TestCaseCreate(TestCaseBase):
+    __test__ = False
+
     id: Optional[str] = Field(None, description="Optional identifier; generated if omitted")
 
 
 class TestCase(TestCaseBase):
+    __test__ = False
+
     id: str = Field(default_factory=lambda: str(uuid4()))
 
 
 class TestCaseGroupBase(BaseModel):
+    __test__ = False
+
     name: str
     description: Optional[str] = None
 
 
 class TestCaseGroupCreate(TestCaseGroupBase):
+    __test__ = False
+
     id: Optional[str] = Field(None, description="Optional identifier; generated if omitted")
     tests: List[TestCaseCreate] = Field(default_factory=list)
 
 
 class TestCaseGroup(TestCaseGroupBase):
+    __test__ = False
+
     id: str = Field(default_factory=lambda: str(uuid4()))
     tests: List[TestCase] = Field(default_factory=list)
 

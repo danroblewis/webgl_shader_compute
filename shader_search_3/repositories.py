@@ -24,6 +24,8 @@ TCreate = TypeVar("TCreate", bound=BaseModel)
 class JSONRepository(Generic[TModel, TCreate]):
     """Thread-safe JSON file repository."""
 
+    __test__ = False
+
     def __init__(self, file_path: Path, model_cls: Type[TModel]) -> None:
         self.file_path = file_path
         self.model_cls = model_cls
@@ -76,6 +78,8 @@ class JSONRepository(Generic[TModel, TCreate]):
 
 
 class EvolutionConfigRepository(JSONRepository[EvolutionConfig, EvolutionConfigCreate]):
+    __test__ = False
+
     def __init__(self, file_path: Path) -> None:
         super().__init__(file_path, EvolutionConfig)
 
@@ -98,6 +102,8 @@ class EvolutionConfigRepository(JSONRepository[EvolutionConfig, EvolutionConfigC
 
 
 class TestCaseGroupRepository(JSONRepository[TestCaseGroup, TestCaseGroupCreate]):
+    __test__ = False
+
     def __init__(self, file_path: Path) -> None:
         super().__init__(file_path, TestCaseGroup)
 
