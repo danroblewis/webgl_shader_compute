@@ -400,9 +400,8 @@ export default function GeneticAlgorithmPanel({ groups, selectedConfig, onConfig
               <input
                 type="number"
                 min="1"
-                max="1000"
                 value={maxIterations}
-                onChange={(e) => setMaxIterations(Math.max(1, Math.min(1000, parseInt(e.target.value) || 50)))}
+                onChange={(e) => setMaxIterations(Math.max(1, parseInt(e.target.value) || 50))}
                 style={{ 
                   width: '100%', 
                   padding: '0.625rem 0.75rem',
