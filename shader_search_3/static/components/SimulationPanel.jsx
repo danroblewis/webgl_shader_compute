@@ -370,7 +370,7 @@ ${conditionalBlock}
           </button>
         </div>
       </div>
-      <div className="simulation-content">
+      <div className="simulation-content" style={{ width: '100%', height: '600px', minHeight: '400px' }}>
         {/* Canvas will be replaced by simulation canvas in useEffect */}
         <canvas
           ref={displayCanvasRef}
@@ -381,6 +381,8 @@ ${conditionalBlock}
             border: '1px solid rgba(148, 163, 184, 0.2)',
             borderRadius: '8px',
             display: 'block',
+            width: '100%',
+            height: '100%',
           }}
         />
       </div>
