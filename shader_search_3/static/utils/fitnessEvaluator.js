@@ -22,6 +22,7 @@ export function createFitnessEvaluator({ testGroups, gpuCompute, testEvaluator, 
   return async (ruleSet) => {
     // Track textures to cleanup at the end
     const ruleTextures = []
+    const texturesToCleanup = [] // Declare outside try block so it's available in catch
     const timings = {
       uniformPreparation: 0,
       bufferPreparation: 0,
@@ -67,7 +68,7 @@ export function createFitnessEvaluator({ testGroups, gpuCompute, testEvaluator, 
       // Create ping-pong buffers for simulation steps
       let currentTexture = inputTexture
       let nextTexture = null
-      const texturesToCleanup = [inputTexture]
+      texturesToCleanup.push(inputTexture)
       
       if (simulationSteps > 0) {
         nextTexture = gpuCompute.createBuffer(
