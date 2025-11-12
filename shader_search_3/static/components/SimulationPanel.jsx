@@ -5,6 +5,7 @@ import { getCellTypesFromConfig } from '../utils/getCellTypesFromConfig.js'
 export const SimulationPanel = ({ simulation, config, selectedCellType = 0, onCellTypeChange }) => {
   const [isPlaying, setIsPlaying] = React.useState(true)
   const [error, setError] = React.useState(null)
+  const [isDragging, setIsDragging] = React.useState(false)
   const displayCanvasRef = React.useRef(null)
   const rendererRef = React.useRef(null)
   const animationFrameRef = React.useRef(null)
@@ -77,14 +78,14 @@ ${conditionalBlock}
     }
   }, [simulation, getFragmentShader])
 
-  // Handle canvas click (painting)
-  const handleCanvasClick = React.useCallback((event) => {
+  // Place a cell at the given screen coordinates
+  const placeCellAtScreenCoords = React.useCallback((screenX, screenY) => {
     if (!simulation || !displayCanvasRef.current) return
     
     const canvas = displayCanvasRef.current
     const rect = canvas.getBoundingClientRect()
-    const x = event.clientX - rect.left
-    const y = event.clientY - rect.top
+    const x = screenX - rect.left
+    const y = screenY - rect.top
     
     // Convert screen coordinates to grid coordinates
     // Use rect dimensions to account for CSS scaling
@@ -108,6 +109,42 @@ ${conditionalBlock}
       console.error('Failed to set cell:', err)
     }
   }, [simulation, selectedCellType, render])
+
+  // Handle canvas mouse down (start painting)
+  const handleCanvasMouseDown = React.useCallback((event) => {
+    if (!simulation || !displayCanvasRef.current) return
+    setIsDragging(true)
+    placeCellAtScreenCoords(event.clientX, event.clientY)
+  }, [simulation, placeCellAtScreenCoords])
+
+  // Handle canvas mouse move (continue painting while dragging)
+  const handleCanvasMouseMove = React.useCallback((event) => {
+    if (!isDragging || !simulation || !displayCanvasRef.current) return
+    placeCellAtScreenCoords(event.clientX, event.clientY)
+  }, [isDragging, simulation, placeCellAtScreenCoords])
+
+  // Handle canvas mouse up (stop painting)
+  const handleCanvasMouseUp = React.useCallback(() => {
+    setIsDragging(false)
+  }, [])
+
+  // Handle canvas mouse leave (stop painting if mouse leaves canvas)
+  const handleCanvasMouseLeave = React.useCallback(() => {
+    setIsDragging(false)
+  }, [])
+
+  // Handle window mouse up (stop painting if mouse is released anywhere)
+  const handleWindowMouseUp = React.useCallback(() => {
+    setIsDragging(false)
+  }, [])
+
+  // Add window-level mouseup listener to handle dragging outside canvas
+  React.useEffect(() => {
+    window.addEventListener('mouseup', handleWindowMouseUp)
+    return () => {
+      window.removeEventListener('mouseup', handleWindowMouseUp)
+    }
+  }, [handleWindowMouseUp])
 
   // Initialize renderer when canvas is ready
   React.useEffect(() => {
@@ -136,14 +173,23 @@ ${conditionalBlock}
         // Add the simulation canvas
         container.appendChild(simCanvas)
         simCanvas.style.cssText = displayCanvasRef.current.style.cssText
-        // Attach click handler to the simulation canvas
-        simCanvas.addEventListener('click', handleCanvasClick)
+        // Attach mouse handlers to the simulation canvas for click and drag
+        simCanvas.addEventListener('mousedown', handleCanvasMouseDown)
+        simCanvas.addEventListener('mousemove', handleCanvasMouseMove)
+        simCanvas.addEventListener('mouseup', handleCanvasMouseUp)
+        simCanvas.addEventListener('mouseleave', handleCanvasMouseLeave)
         displayCanvasRef.current = simCanvas
       } else if (container && container.contains(simCanvas)) {
-        // Canvas already in DOM, just update ref and ensure handler is attached
-        // Remove old handler if it exists, then add new one
-        simCanvas.removeEventListener('click', handleCanvasClick)
-        simCanvas.addEventListener('click', handleCanvasClick)
+        // Canvas already in DOM, just update ref and ensure handlers are attached
+        // Remove old handlers if they exist, then add new ones
+        simCanvas.removeEventListener('mousedown', handleCanvasMouseDown)
+        simCanvas.removeEventListener('mousemove', handleCanvasMouseMove)
+        simCanvas.removeEventListener('mouseup', handleCanvasMouseUp)
+        simCanvas.removeEventListener('mouseleave', handleCanvasMouseLeave)
+        simCanvas.addEventListener('mousedown', handleCanvasMouseDown)
+        simCanvas.addEventListener('mousemove', handleCanvasMouseMove)
+        simCanvas.addEventListener('mouseup', handleCanvasMouseUp)
+        simCanvas.addEventListener('mouseleave', handleCanvasMouseLeave)
         displayCanvasRef.current = simCanvas
       }
       
@@ -168,16 +214,19 @@ ${conditionalBlock}
     }
     
     return () => {
-      // Remove click handler on cleanup
+      // Remove mouse handlers on cleanup
       if (displayCanvasRef.current && displayCanvasRef.current.removeEventListener) {
-        displayCanvasRef.current.removeEventListener('click', handleCanvasClick)
+        displayCanvasRef.current.removeEventListener('mousedown', handleCanvasMouseDown)
+        displayCanvasRef.current.removeEventListener('mousemove', handleCanvasMouseMove)
+        displayCanvasRef.current.removeEventListener('mouseup', handleCanvasMouseUp)
+        displayCanvasRef.current.removeEventListener('mouseleave', handleCanvasMouseLeave)
       }
       if (rendererRef.current) {
         rendererRef.current.dispose()
         rendererRef.current = null
       }
     }
-  }, [simulation, getFragmentShader, handleCanvasClick])
+  }, [simulation, getFragmentShader, handleCanvasMouseDown, handleCanvasMouseMove, handleCanvasMouseUp, handleCanvasMouseLeave])
 
   // Animation loop
   React.useEffect(() => {
@@ -273,7 +322,6 @@ ${conditionalBlock}
           ref={displayCanvasRef}
           width={500}
           height={500}
-          onClick={handleCanvasClick}
           style={{ 
             cursor: 'pointer',
             border: '1px solid rgba(148, 163, 184, 0.2)',
