@@ -190,30 +190,22 @@ export function createFitnessEvaluator({ testGroups, gpuCompute, testEvaluator, 
         gl.bindTexture(gl.TEXTURE_2D, null)
       }
       
+      // Unbind framebuffer
+      gl.bindFramebuffer(gl.FRAMEBUFFER, null)
+      
+      // Use deleteBuffer method to properly clean up textures and their framebuffers
       texturesToCleanup.forEach(tex => {
         if (tex) {
-          try {
-            gl.deleteTexture(tex)
-          } catch (e) {
-            // Texture already deleted or invalid
-          }
+          gpuCompute.deleteBuffer(tex)
         }
       })
       if (expectedTexture) {
-        try {
-          gl.deleteTexture(expectedTexture)
-        } catch (e) {
-          // Texture already deleted or invalid
-        }
+        gpuCompute.deleteBuffer(expectedTexture)
       }
       // Cleanup rule textures
       ruleTextures.forEach(tex => {
         if (tex) {
-          try {
-            gl.deleteTexture(tex)
-          } catch (e) {
-            // Texture already deleted or invalid
-          }
+          gpuCompute.deleteBuffer(tex)
         }
       })
       
@@ -222,11 +214,24 @@ export function createFitnessEvaluator({ testGroups, gpuCompute, testEvaluator, 
     } catch (error) {
       console.error('Fitness evaluation error:', error)
       // Cleanup on error
+      const gl = gpuCompute.gl
+      // Unbind textures and framebuffer
+      for (let i = 0; i < 32; i++) {
+        gl.activeTexture(gl.TEXTURE0 + i)
+        gl.bindTexture(gl.TEXTURE_2D, null)
+      }
+      gl.bindFramebuffer(gl.FRAMEBUFFER, null)
+      
+      // Use deleteBuffer method for proper cleanup
       texturesToCleanup.forEach(tex => {
-        try { gpuCompute.gl.deleteTexture(tex) } catch (e) {}
+        if (tex) {
+          try { gpuCompute.deleteBuffer(tex) } catch (e) {}
+        }
       })
       ruleTextures.forEach(tex => {
-        try { gpuCompute.gl.deleteTexture(tex) } catch (e) {}
+        if (tex) {
+          try { gpuCompute.deleteBuffer(tex) } catch (e) {}
+        }
       })
       timings.total = performance.now() - startTotal
       return { fitness: 0.0, timings } // Return 0 fitness on error

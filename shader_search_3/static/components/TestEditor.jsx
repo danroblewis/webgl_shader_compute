@@ -3,6 +3,7 @@ import { TestGroupSidebar } from './TestGroupSidebar.jsx'
 import { TestCaseViewer } from './TestCaseViewer.jsx'
 import { TestCaseEditor } from './TestCaseEditor.jsx'
 import { TestToolbar } from './TestToolbar.jsx'
+import { TestAnimationView } from './TestAnimationView.jsx'
 
 const cloneCell = (cell) => {
   const next = new Float32Array(4)
@@ -36,6 +37,7 @@ export const TestEditor = ({
   const [selectedTestId, setSelectedTestId] = React.useState(null)
   const [mode, setMode] = React.useState('view')
   const [draftTest, setDraftTest] = React.useState(null)
+  const [viewMode, setViewMode] = React.useState('single') // 'single' or 'animation'
 
   React.useEffect(() => {
     if (!groups.length) {
@@ -133,19 +135,41 @@ export const TestEditor = ({
         onDeleteGroup={handleDeleteGroup}
       />
       <div className="test-content">
-        <TestToolbar
-          hasSelection={Boolean(selectedTest)}
-          mode={mode}
-          saving={saving}
-          onRefresh={onRefresh}
-          onEdit={startEdit}
-          onCancel={cancelEdit}
-          onSave={saveEdit}
-          onDelete={deleteTest}
-        />
+        <div className="test-content-header">
+          <div className="test-view-mode-toggle">
+            <button
+              type="button"
+              className={`view-mode-button ${viewMode === 'single' ? 'active' : ''}`}
+              onClick={() => setViewMode('single')}
+            >
+              Single Test
+            </button>
+            <button
+              type="button"
+              className={`view-mode-button ${viewMode === 'animation' ? 'active' : ''}`}
+              onClick={() => setViewMode('animation')}
+            >
+              All Animations
+            </button>
+          </div>
+          {viewMode === 'single' && (
+            <TestToolbar
+              hasSelection={Boolean(selectedTest)}
+              mode={mode}
+              saving={saving}
+              onRefresh={onRefresh}
+              onEdit={startEdit}
+              onCancel={cancelEdit}
+              onSave={saveEdit}
+              onDelete={deleteTest}
+            />
+          )}
+        </div>
         {error && <div className="error">{error}</div>}
         {loading ? (
           <div className="test-viewer-empty">Loading test cases…</div>
+        ) : viewMode === 'animation' ? (
+          <TestAnimationView groups={groups} channelIndex={channelIndex} />
         ) : mode === 'edit' ? (
           <TestCaseEditor test={draftTest} onChange={setDraftTest} channelIndex={channelIndex} />
         ) : (

@@ -428,10 +428,34 @@ class GPUCompute {
     }
     
     #getOrCreateFramebuffer(texture) {
+        // Check if we have a cached framebuffer for this texture
         if (this.framebufferCache.has(texture)) {
-            return this.framebufferCache.get(texture);
+            const cachedFramebuffer = this.framebufferCache.get(texture);
+            
+            // Verify the framebuffer is still valid by checking its status
+            this.gl.bindFramebuffer(this.gl.FRAMEBUFFER, cachedFramebuffer);
+            const status = this.gl.checkFramebufferStatus(this.gl.FRAMEBUFFER);
+            
+            if (status === this.gl.FRAMEBUFFER_COMPLETE) {
+                // Framebuffer is valid, return it (it's already bound)
+                return cachedFramebuffer;
+            } else {
+                // Framebuffer is invalid (texture was deleted), remove from cache and clean up
+                this.gl.bindFramebuffer(this.gl.FRAMEBUFFER, null); // Unbind before cleanup
+                this.framebufferCache.delete(texture);
+                const fbIndex = this.framebuffers.indexOf(cachedFramebuffer);
+                if (fbIndex >= 0) {
+                    this.framebuffers.splice(fbIndex, 1);
+                }
+                try {
+                    this.gl.deleteFramebuffer(cachedFramebuffer);
+                } catch (e) {
+                    // Framebuffer already deleted or invalid
+                }
+            }
         }
         
+        // Create new framebuffer
         const framebuffer = this.gl.createFramebuffer();
         this.gl.bindFramebuffer(this.gl.FRAMEBUFFER, framebuffer);
         this.gl.framebufferTexture2D(
@@ -444,6 +468,8 @@ class GPUCompute {
         
         const status = this.gl.checkFramebufferStatus(this.gl.FRAMEBUFFER);
         if (status !== this.gl.FRAMEBUFFER_COMPLETE) {
+            // Clean up the framebuffer we just created
+            this.gl.deleteFramebuffer(framebuffer);
             const statusNames = {
                 0x8cd6: 'FRAMEBUFFER_INCOMPLETE_ATTACHMENT',
                 0x8cd7: 'FRAMEBUFFER_INCOMPLETE_MISSING_ATTACHMENT',
@@ -458,6 +484,50 @@ class GPUCompute {
         this.framebuffers.push(framebuffer);
         this.framebufferCache.set(texture, framebuffer);
         return framebuffer;
+    }
+    
+    /**
+     * Delete a buffer and clean up its associated framebuffer
+     * Use this instead of directly calling gl.deleteTexture() to ensure proper cleanup
+     * @param {Buffer} texture - Texture buffer to delete
+     */
+    deleteBuffer(texture) {
+        if (!texture) return
+        
+        // Clean up framebuffer if cached
+        if (this.framebufferCache.has(texture)) {
+            const framebuffer = this.framebufferCache.get(texture)
+            this.framebufferCache.delete(texture)
+            
+            // Remove from framebuffers array
+            const fbIndex = this.framebuffers.indexOf(framebuffer)
+            if (fbIndex >= 0) {
+                this.framebuffers.splice(fbIndex, 1)
+            }
+            
+            // Unbind framebuffer if it's currently bound
+            this.gl.bindFramebuffer(this.gl.FRAMEBUFFER, null)
+            
+            // Delete framebuffer
+            try {
+                this.gl.deleteFramebuffer(framebuffer)
+            } catch (e) {
+                // Already deleted or invalid
+            }
+        }
+        
+        // Remove from textures array
+        const texIndex = this.textures.indexOf(texture)
+        if (texIndex >= 0) {
+            this.textures.splice(texIndex, 1)
+        }
+        
+        // Delete texture
+        try {
+            this.gl.deleteTexture(texture)
+        } catch (e) {
+            // Already deleted or invalid
+        }
     }
 }
 

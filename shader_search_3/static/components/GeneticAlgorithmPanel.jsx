@@ -18,6 +18,9 @@ export default function GeneticAlgorithmPanel({ groups, selectedConfig, onConfig
   const [populationSize, setPopulationSize] = React.useState(50)
   const [elitismCount, setElitismCount] = React.useState(10)
   const [maxIterations, setMaxIterations] = React.useState(500000)
+  const [mutationRate, setMutationRate] = React.useState(0.1)
+  const [crossoverRate, setCrossoverRate] = React.useState(0.7)
+  const [tournamentSize, setTournamentSize] = React.useState(3)
   
   const gaRef = React.useRef(null)
   const gpuComputeRef = React.useRef(null)
@@ -224,10 +227,10 @@ export default function GeneticAlgorithmPanel({ groups, selectedConfig, onConfig
       // Initialize genetic algorithm
       gaRef.current = new GeneticAlgorithm({
         populationSize: populationSize,
-        mutationRate: 0.1,
-        crossoverRate: 0.7,
+        mutationRate: mutationRate,
+        crossoverRate: crossoverRate,
         elitismCount: elitismCount,
-        tournamentSize: 3,
+        tournamentSize: tournamentSize,
         availableCellTypes: cellTypeNames
       })
       
@@ -402,6 +405,119 @@ export default function GeneticAlgorithmPanel({ groups, selectedConfig, onConfig
                 min="1"
                 value={maxIterations}
                 onChange={(e) => setMaxIterations(Math.max(1, parseInt(e.target.value) || 50))}
+                style={{ 
+                  width: '100%', 
+                  padding: '0.625rem 0.75rem',
+                  backgroundColor: 'rgba(15, 23, 42, 0.8)',
+                  border: '1px solid rgba(148, 163, 184, 0.2)',
+                  borderRadius: '6px',
+                  color: '#e2e8f0',
+                  fontSize: '0.9rem',
+                  transition: 'border-color 0.2s, box-shadow 0.2s'
+                }}
+                onFocus={(e) => {
+                  e.target.style.borderColor = '#38bdf8'
+                  e.target.style.boxShadow = '0 0 0 3px rgba(56, 189, 248, 0.1)'
+                }}
+                onBlur={(e) => {
+                  e.target.style.borderColor = 'rgba(148, 163, 184, 0.2)'
+                  e.target.style.boxShadow = 'none'
+                }}
+                disabled={isRunning}
+              />
+            </div>
+            <div>
+              <label style={{ 
+                display: 'block', 
+                marginBottom: '0.5rem', 
+                fontSize: '0.9rem',
+                color: '#cbd5e1',
+                fontWeight: 500
+              }}>
+                Mutation Rate:
+              </label>
+              <input
+                type="number"
+                min="0"
+                max="1"
+                step="0.01"
+                value={mutationRate}
+                onChange={(e) => setMutationRate(Math.max(0, Math.min(1, parseFloat(e.target.value) || 0.1)))}
+                style={{ 
+                  width: '100%', 
+                  padding: '0.625rem 0.75rem',
+                  backgroundColor: 'rgba(15, 23, 42, 0.8)',
+                  border: '1px solid rgba(148, 163, 184, 0.2)',
+                  borderRadius: '6px',
+                  color: '#e2e8f0',
+                  fontSize: '0.9rem',
+                  transition: 'border-color 0.2s, box-shadow 0.2s'
+                }}
+                onFocus={(e) => {
+                  e.target.style.borderColor = '#38bdf8'
+                  e.target.style.boxShadow = '0 0 0 3px rgba(56, 189, 248, 0.1)'
+                }}
+                onBlur={(e) => {
+                  e.target.style.borderColor = 'rgba(148, 163, 184, 0.2)'
+                  e.target.style.boxShadow = 'none'
+                }}
+                disabled={isRunning}
+              />
+            </div>
+            <div>
+              <label style={{ 
+                display: 'block', 
+                marginBottom: '0.5rem', 
+                fontSize: '0.9rem',
+                color: '#cbd5e1',
+                fontWeight: 500
+              }}>
+                Crossover Rate:
+              </label>
+              <input
+                type="number"
+                min="0"
+                max="1"
+                step="0.01"
+                value={crossoverRate}
+                onChange={(e) => setCrossoverRate(Math.max(0, Math.min(1, parseFloat(e.target.value) || 0.7)))}
+                style={{ 
+                  width: '100%', 
+                  padding: '0.625rem 0.75rem',
+                  backgroundColor: 'rgba(15, 23, 42, 0.8)',
+                  border: '1px solid rgba(148, 163, 184, 0.2)',
+                  borderRadius: '6px',
+                  color: '#e2e8f0',
+                  fontSize: '0.9rem',
+                  transition: 'border-color 0.2s, box-shadow 0.2s'
+                }}
+                onFocus={(e) => {
+                  e.target.style.borderColor = '#38bdf8'
+                  e.target.style.boxShadow = '0 0 0 3px rgba(56, 189, 248, 0.1)'
+                }}
+                onBlur={(e) => {
+                  e.target.style.borderColor = 'rgba(148, 163, 184, 0.2)'
+                  e.target.style.boxShadow = 'none'
+                }}
+                disabled={isRunning}
+              />
+            </div>
+            <div>
+              <label style={{ 
+                display: 'block', 
+                marginBottom: '0.5rem', 
+                fontSize: '0.9rem',
+                color: '#cbd5e1',
+                fontWeight: 500
+              }}>
+                Tournament Size:
+              </label>
+              <input
+                type="number"
+                min="2"
+                max="10"
+                value={tournamentSize}
+                onChange={(e) => setTournamentSize(Math.max(2, Math.min(10, parseInt(e.target.value) || 3)))}
                 style={{ 
                   width: '100%', 
                   padding: '0.625rem 0.75rem',
