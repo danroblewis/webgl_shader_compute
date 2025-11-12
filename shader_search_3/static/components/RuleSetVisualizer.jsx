@@ -48,19 +48,19 @@ export default function RuleSetVisualizer({ ruleSet }) {
     return (
       <div style={{
         display: 'inline-block',
-        margin: '0.5rem',
-        padding: '0.75rem',
+        margin: '0.25rem',
+        padding: '0.375rem',
         backgroundColor: 'rgba(15, 23, 42, 0.3)',
-        borderRadius: '8px',
+        borderRadius: '4px',
         border: '1px solid rgba(148, 163, 184, 0.2)'
       }}>
         <div style={{
           display: 'grid',
           gridTemplateColumns: 'repeat(3, 1fr)',
-          gap: '2px',
-          width: '120px',
-          height: '120px',
-          marginBottom: '0.5rem'
+          gap: '1px',
+          width: '60px',
+          height: '60px',
+          marginBottom: '0.25rem'
         }}>
           {positions.map(({ idx, label }) => {
             const cellValue = pattern[idx]
@@ -79,48 +79,36 @@ export default function RuleSetVisualizer({ ruleSet }) {
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  fontSize: '0.7rem',
+                  fontSize: '0.35rem',
                   color: isWildcard ? '#94a3b8' : '#fff',
                   fontWeight: isCenter ? 'bold' : 'normal',
                   position: 'relative'
                 }}
                 title={isCenter ? `Center (${cellTypeName})` : `${label}: ${isWildcard ? 'Any' : cellInfo?.name || cellValue}`}
               >
-                {isWildcard ? '•' : (cellInfo?.id ?? cellValue)}
+                {isWildcard ? '•' : ''}
               </div>
             )
           })}
         </div>
         <div style={{
           textAlign: 'center',
-          fontSize: '0.85rem',
-          marginTop: '0.25rem',
+          fontSize: '0.425rem',
+          marginTop: '0.125rem',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          gap: '0.5rem'
+          gap: '0.25rem'
         }}>
           <span style={{ color: '#64748b' }}>→</span>
           <span style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '0.25rem',
-            padding: '0.25rem 0.5rem',
+            display: 'inline-block',
+            width: '12px',
+            height: '12px',
             backgroundColor: getCellTypeInfo(becomes)?.color || '#222222',
-            color: '#fff',
-            fontWeight: 'bold',
-            borderRadius: '4px',
+            borderRadius: '2px',
             border: '1px solid rgba(255, 255, 255, 0.2)'
-          }}>
-            <span style={{
-              display: 'inline-block',
-              width: '12px',
-              height: '12px',
-              backgroundColor: 'rgba(255, 255, 255, 0.3)',
-              borderRadius: '2px'
-            }} />
-            {getCellTypeInfo(becomes)?.name || becomes}
-          </span>
+          }} />
         </div>
       </div>
     )
