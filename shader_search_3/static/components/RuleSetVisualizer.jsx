@@ -34,15 +34,15 @@ export default function RuleSetVisualizer({ ruleSet }) {
 
     // Pattern layout: [NW, N, NE, W, C, E, SW, S, SE]
     const positions = [
-      { idx: 0, label: 'NW' },
-      { idx: 1, label: 'N' },
-      { idx: 2, label: 'NE' },
+      { idx: 6, label: 'NW' },
+      { idx: 7, label: 'N' },
+      { idx: 8, label: 'NE' },
       { idx: 3, label: 'W' },
       { idx: 4, label: 'C' },
       { idx: 5, label: 'E' },
-      { idx: 6, label: 'SW' },
-      { idx: 7, label: 'S' },
-      { idx: 8, label: 'SE' },
+      { idx: 1, label: 'SW' },
+      { idx: 2, label: 'S' },
+      { idx: 3, label: 'SE' },
     ]
 
     return (
