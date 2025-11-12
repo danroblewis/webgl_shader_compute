@@ -30,6 +30,115 @@ TEST_GROUP_REPO = TestCaseGroupRepository(DATA_DIR / "test_case_groups.json")
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
 
+def _seed_sample_evolution_config() -> None:
+    """Create a starter evolution configuration if none exist yet."""
+    if CONFIG_REPO.list():
+        return
+
+    sample_simulation_code = """// Sample GridSimulation subclass for Shader Search 3\nclass StarterSimulation extends GridSimulation {\n  static CellType = {\n    EMPTY: new Float32Array([0, 0, 0, 0]),\n    SAND: new Float32Array([1, 0, 0, 0]),\n    WATER: new Float32Array([2, 0, 0, 0]),\n    STONE: new Float32Array([3, 0, 0, 0]),\n  };\n\n  constructor(options) {\n    super({\n      ...options,\n      cellTypes: StarterSimulation.CellType,\n    });\n  }\n}\n"""
+
+    sample_rules = {
+        "EMPTY": [{
+            "pattern": ["*", "*", "*", "*", "EMPTY", "*", "*", "SAND", "*"],
+            "becomes": "SAND",
+        }, {
+            "pattern": ["*", "*", "*", "*", "EMPTY", "*", "*", "WATER", "*"],
+            "becomes": "WATER",
+        }],
+        "SAND": [{
+            "pattern": ["*", "*", "*", "*", "SAND", "*", "*", "EMPTY", "*"],
+            "becomes": "EMPTY",
+        }],
+        "WATER": [{
+            "pattern": ["*", "*", "*", "EMPTY", "WATER", "EMPTY", "*", "EMPTY", "*"],
+            "becomes": "EMPTY",
+        }],
+        "STONE": [],
+    }
+
+    CONFIG_REPO.create(
+        EvolutionConfigCreate(
+            name="Starter Sandbox",
+            description="Baseline simulation with sand, water, stone, and empty cells.",
+            grid_simulation_code=sample_simulation_code.strip(),
+            rule_set=sample_rules,
+        )
+    )
+
+
+def _seed_sample_test_cases() -> None:
+    """Create example test case groups if none exist."""
+    if TEST_GROUP_REPO.list():
+        return
+
+    sand_fall_frames = [
+        [
+            [0, 0, 0, 0],
+            [0, 1, 0, 0],
+            [0, 0, 0, 0],
+            [0, 0, 0, 0],
+        ],
+        [
+            [0, 0, 0, 0],
+            [0, 0, 0, 0],
+            [0, 1, 0, 0],
+            [0, 0, 0, 0],
+        ],
+        [
+            [0, 0, 0, 0],
+            [0, 0, 0, 0],
+            [0, 0, 0, 0],
+            [0, 1, 0, 0],
+        ],
+    ]
+
+    water_slide_frames = [
+        [
+            [3, 3, 3, 3],
+            [3, 2, 0, 3],
+            [3, 0, 0, 3],
+            [3, 3, 3, 3],
+        ],
+        [
+            [3, 3, 3, 3],
+            [3, 0, 2, 3],
+            [3, 0, 0, 3],
+            [3, 3, 3, 3],
+        ],
+        [
+            [3, 3, 3, 3],
+            [3, 0, 0, 3],
+            [3, 0, 2, 3],
+            [3, 3, 3, 3],
+        ],
+    ]
+
+    TEST_GROUP_REPO.create(
+        TestCaseGroupCreate(
+            name="Starter Tests",
+            description="Example falling sand and sliding water behaviors.",
+            tests=[
+                {
+                    "name": "sand_falls_straight_down",
+                    "width": 4,
+                    "height": 4,
+                    "frames": sand_fall_frames,
+                },
+                {
+                    "name": "water_slides_right",
+                    "width": 4,
+                    "height": 4,
+                    "frames": water_slide_frames,
+                },
+            ],
+        )
+    )
+
+
+_seed_sample_evolution_config()
+_seed_sample_test_cases()
+
+
 @app.get("/")
 async def root() -> FileResponse:
     """Serve the single-page React application."""

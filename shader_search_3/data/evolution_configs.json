@@ -1,1 +1,73 @@
-[]
+[
+  {
+    "name": "Starter Sandbox",
+    "description": "Baseline simulation with sand, water, stone, and empty cells.",
+    "grid_simulation_code": "// Sample GridSimulation subclass for Shader Search 3\nclass StarterSimulation extends GridSimulation {\n  static CellType = {\n    EMPTY: new Float32Array([0, 0, 0, 0]),\n    SAND: new Float32Array([1, 0, 0, 0]),\n    WATER: new Float32Array([2, 0, 0, 0]),\n    STONE: new Float32Array([3, 0, 0, 0]),\n  };\n\n  constructor(options) {\n    super({\n      ...options,\n      cellTypes: StarterSimulation.CellType,\n    });\n  }\n}",
+    "rule_set": {
+      "EMPTY": [
+        {
+          "pattern": [
+            "*",
+            "*",
+            "*",
+            "*",
+            "EMPTY",
+            "*",
+            "*",
+            "SAND",
+            "*"
+          ],
+          "becomes": "SAND"
+        },
+        {
+          "pattern": [
+            "*",
+            "*",
+            "*",
+            "*",
+            "EMPTY",
+            "*",
+            "*",
+            "WATER",
+            "*"
+          ],
+          "becomes": "WATER"
+        }
+      ],
+      "SAND": [
+        {
+          "pattern": [
+            "*",
+            "*",
+            "*",
+            "*",
+            "SAND",
+            "*",
+            "*",
+            "EMPTY",
+            "*"
+          ],
+          "becomes": "EMPTY"
+        }
+      ],
+      "WATER": [
+        {
+          "pattern": [
+            "*",
+            "*",
+            "*",
+            "EMPTY",
+            "WATER",
+            "EMPTY",
+            "*",
+            "EMPTY",
+            "*"
+          ],
+          "becomes": "EMPTY"
+        }
+      ],
+      "STONE": []
+    },
+    "id": "2e5ea733-4902-43bb-be0f-56519595c50f"
+  }
+]

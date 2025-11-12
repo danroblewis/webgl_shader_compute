@@ -20,8 +20,8 @@ main {
   max-width: 960px;
   margin: 0 auto;
   padding: 0 1.5rem 3rem;
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  display: flex;
+  flex-direction: column;
   gap: 1.5rem;
 }
 
@@ -99,20 +99,43 @@ button.refresh:hover {
 
 .grid-preview {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(8px, 1fr));
   gap: 2px;
   margin-top: 0.5rem;
 }
 
 .grid-cell {
-  width: 100%;
-  padding-top: 100%;
-  position: relative;
   border-radius: 2px;
+  overflow: hidden;
 }
 
 .grid-cell-inner {
-  position: absolute;
-  inset: 0;
+  width: 100%;
+  height: 100%;
   border-radius: 2px;
+}
+
+.ca-preview {
+  display: flex;
+  flex-direction: column;
+}
+
+.ca-run {
+  display: flex;
+  gap: 12px;
+  margin-top: 0.75rem;
+  overflow-x: auto;
+  padding-bottom: 0.5rem;
+}
+
+.ca-run-frame {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: max-content;
+}
+
+.ca-run-frame-label {
+  font-size: 0.75rem;
+  color: #94a3b8;
 }

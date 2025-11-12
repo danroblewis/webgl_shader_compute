@@ -28,17 +28,12 @@ uvicorn main:app --reload --host 0.0.0.0 --port 8000
 - `GET /` serves `static/index.html`, a React SPA loaded from CDNjs (no bundlers required).
 - Additional SPA assets (if any) live under `static/` and are served at `/static/*`.
 
+## Seed Data
+
+On first launch, the API seeds a `Starter Sandbox` evolution configuration containing a simple `GridSimulation` subclass with four cell types (`EMPTY`, `SAND`, `WATER`, `STONE`) and a basic ruleset. Delete or replace it by calling the evolution-config endpoints.
+
+It also seeds a `Starter Tests` group with two example scenarios (`sand_falls_straight_down`, `water_slides_right`) so the browser UI has immediate data to display.
+
 ## API Endpoints
 
-- `GET /health` – Health check
-- `GET /api/evolution-configs` – List evolution configurations
-- `POST /api/evolution-configs` – Create configuration
-- `GET /api/evolution-configs/{id}` – Retrieve configuration
-- `PUT /api/evolution-configs/{id}` – Update configuration
-- `DELETE /api/evolution-configs/{id}` – Remove configuration
-- `GET /api/test-case-groups` – List test case groups
-- `POST /api/test-case-groups` – Create test case group
-- `GET /api/test-case-groups/{id}` – Retrieve test case group
-- `PUT /api/test-case-groups/{id}` – Update test case group
-- `DELETE /api/test-case-groups/{id}` – Remove test case group
-
+- `GET /health`
