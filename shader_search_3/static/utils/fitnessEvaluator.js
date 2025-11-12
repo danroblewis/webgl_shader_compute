@@ -3,7 +3,7 @@
  * Evaluates rule sets by running simulations and comparing with expected results
  */
 
-import { ruleSetToGLSL } from './ruleSetToGLSL.js'
+import { GENERIC_RULE_SHADER, ruleSetToUniforms } from './genericRuleShader.js'
 
 /**
  * Create a fitness evaluation function
@@ -16,12 +16,14 @@ import { ruleSetToGLSL } from './ruleSetToGLSL.js'
  * @returns {Function} Async function that takes a ruleSet and returns fitness score (0-1)
  */
 export function createFitnessEvaluator({ testGroups, gpuCompute, testEvaluator, baseConfig, simulationSteps = 1 }) {
-  // Cache for compiled kernels (keyed by shader source)
-  const kernelCache = new Map()
+  // Cache for compiled kernel (generic shader is compiled once)
+  let cachedKernel = null
   
   return async (ruleSet) => {
+    // Track textures to cleanup at the end
+    const ruleTextures = []
     const timings = {
-      glslGeneration: 0,
+      uniformPreparation: 0,
       bufferPreparation: 0,
       shaderCompilation: 0,
       bufferUpload: 0,
@@ -32,10 +34,11 @@ export function createFitnessEvaluator({ testGroups, gpuCompute, testEvaluator, 
     const startTotal = performance.now()
     
     try {
-      // Stage 1: Generate GLSL shader from rule set
-      const startGLSL = performance.now()
-      const glslShader = ruleSetToGLSL(ruleSet)
-      timings.glslGeneration = performance.now() - startGLSL
+      // Stage 1: Convert rule set to texture data
+      const startUniforms = performance.now()
+      const uniformData = ruleSetToUniforms(ruleSet, gpuCompute)
+      ruleTextures.push(uniformData.rulesTexture, uniformData.metadataTexture)
+      timings.uniformPreparation = performance.now() - startUniforms
       
       // Stage 2: Combine test cases to get initial state (frame 0)
       const startBufferPrep = performance.now()
@@ -46,12 +49,10 @@ export function createFitnessEvaluator({ testGroups, gpuCompute, testEvaluator, 
       }
       timings.bufferPreparation = performance.now() - startBufferPrep
       
-      // Stage 3: Get or compile kernel (cache by shader source to avoid recompiling)
+      // Stage 3: Compile generic kernel (only once, cached)
       const startCompile = performance.now()
-      let kernel = kernelCache.get(glslShader)
-      if (!kernel) {
-        kernel = gpuCompute.compileKernel(glslShader)
-        kernelCache.set(glslShader, kernel)
+      if (!cachedKernel) {
+        cachedKernel = gpuCompute.compileKernel(GENERIC_RULE_SHADER)
       }
       timings.shaderCompilation = performance.now() - startCompile
       
@@ -81,13 +82,17 @@ export function createFitnessEvaluator({ testGroups, gpuCompute, testEvaluator, 
       const startSim = performance.now()
       if (simulationSteps > 0) {
         for (let step = 0; step < simulationSteps; step++) {
-          // Run kernel
+          // Run kernel with rule set textures
           gpuCompute.run(
-            kernel,
+            cachedKernel,
             {
               u_state: currentTexture,
               u_width: initialBufferData.width,
-              u_height: initialBufferData.height
+              u_height: initialBufferData.height,
+              u_numCellTypes: uniformData.numCellTypes,
+              u_totalRules: uniformData.totalRules,
+              u_rulesTexture: uniformData.rulesTexture,
+              u_ruleMetadataTexture: uniformData.metadataTexture
             },
             nextTexture,
             initialBufferData.width,
@@ -126,8 +131,25 @@ export function createFitnessEvaluator({ testGroups, gpuCompute, testEvaluator, 
       
       if (!expectedBufferData) {
         // Cleanup all textures
+        const gl = gpuCompute.gl
+        // Unbind textures first
+        for (let i = 0; i < 32; i++) {
+          gl.activeTexture(gl.TEXTURE0 + i)
+          gl.bindTexture(gl.TEXTURE_2D, null)
+        }
         texturesToCleanup.forEach(tex => {
-          gpuCompute.gl.deleteTexture(tex)
+          if (tex) {
+            try {
+              gl.deleteTexture(tex)
+            } catch (e) {}
+          }
+        })
+        ruleTextures.forEach(tex => {
+          if (tex) {
+            try {
+              gl.deleteTexture(tex)
+            } catch (e) {}
+          }
         })
         timings.total = performance.now() - startTotal
         return { fitness: 0.0, timings }
@@ -160,15 +182,51 @@ export function createFitnessEvaluator({ testGroups, gpuCompute, testEvaluator, 
       const fitness = results[0] || 0.0
       
       // Cleanup all textures (but keep kernels cached)
+      // Unbind textures first to avoid "deleted object" errors
+      const gl = gpuCompute.gl
+      for (let i = 0; i < 32; i++) {  // Check all texture units
+        gl.activeTexture(gl.TEXTURE0 + i)
+        gl.bindTexture(gl.TEXTURE_2D, null)
+      }
+      
       texturesToCleanup.forEach(tex => {
-        gpuCompute.gl.deleteTexture(tex)
+        if (tex) {
+          try {
+            gl.deleteTexture(tex)
+          } catch (e) {
+            // Texture already deleted or invalid
+          }
+        }
       })
-      gpuCompute.gl.deleteTexture(expectedTexture)
+      if (expectedTexture) {
+        try {
+          gl.deleteTexture(expectedTexture)
+        } catch (e) {
+          // Texture already deleted or invalid
+        }
+      }
+      // Cleanup rule textures
+      ruleTextures.forEach(tex => {
+        if (tex) {
+          try {
+            gl.deleteTexture(tex)
+          } catch (e) {
+            // Texture already deleted or invalid
+          }
+        }
+      })
       
       timings.total = performance.now() - startTotal
       return { fitness, timings }
     } catch (error) {
       console.error('Fitness evaluation error:', error)
+      // Cleanup on error
+      texturesToCleanup.forEach(tex => {
+        try { gpuCompute.gl.deleteTexture(tex) } catch (e) {}
+      })
+      ruleTextures.forEach(tex => {
+        try { gpuCompute.gl.deleteTexture(tex) } catch (e) {}
+      })
       timings.total = performance.now() - startTotal
       return { fitness: 0.0, timings } // Return 0 fitness on error
     }

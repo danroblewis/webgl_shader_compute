@@ -147,8 +147,20 @@ class GPUCompute {
         
         // Set up uniforms
         let textureUnit = 0;
+        
+        // Build a map of uniform types by querying all active uniforms
+        const uniformTypeMap = new Map();
+        const uniformCount = this.gl.getProgramParameter(kernel, this.gl.ACTIVE_UNIFORMS);
+        for (let i = 0; i < uniformCount; i++) {
+            const uniformInfo = this.gl.getActiveUniform(kernel, i);
+            if (uniformInfo) {
+                uniformTypeMap.set(uniformInfo.name, uniformInfo.type);
+            }
+        }
+        
         for (const [name, value] of Object.entries(inputs)) {
             const location = this.gl.getUniformLocation(kernel, name);
+            if (!location) continue;  // Uniform doesn't exist in shader
             
             if (value instanceof WebGLTexture) {
                 // Bind texture uniform
@@ -157,16 +169,61 @@ class GPUCompute {
                 this.gl.uniform1i(location, textureUnit);
                 textureUnit++;
             } else if (typeof value === 'number') {
-                // Scalar uniform
-                this.gl.uniform1f(location, value);
-            } else if (Array.isArray(value) || value instanceof Float32Array) {
-                // Vector uniform
-                switch (value.length) {
-                    case 2: this.gl.uniform2fv(location, value); break;
-                    case 3: this.gl.uniform3fv(location, value); break;
-                    case 4: this.gl.uniform4fv(location, value); break;
-                    default: this.gl.uniform1fv(location, value); break;
+                // Check uniform type from the map we built
+                const uniformType = uniformTypeMap.get(name);
+                if (uniformType) {
+                    // Check if it's an integer type
+                    const isIntType = uniformType === this.gl.INT || 
+                                     uniformType === this.gl.SAMPLER_2D ||
+                                     uniformType === this.gl.UNSIGNED_INT;
+                    if (isIntType && Number.isInteger(value)) {
+                        this.gl.uniform1i(location, value);
+                    } else {
+                        this.gl.uniform1f(location, value);
+                    }
+                } else {
+                    // Fallback: use known integer uniforms or assume float
+                    const knownIntUniforms = ['u_numCellTypes', 'u_totalRules'];
+                    if (knownIntUniforms.includes(name) && Number.isInteger(value)) {
+                        this.gl.uniform1i(location, value);
+                    } else {
+                        this.gl.uniform1f(location, value);
+                    }
                 }
+            } else if (Array.isArray(value) || value instanceof Float32Array) {
+                // Vector uniform - check type from map
+                const uniformType = uniformTypeMap.get(name);
+                if (uniformType) {
+                    const isIntType = uniformType === this.gl.INT_VEC2 || 
+                                     uniformType === this.gl.INT_VEC3 ||
+                                     uniformType === this.gl.INT_VEC4;
+                    if (isIntType && value instanceof Int32Array) {
+                        switch (value.length) {
+                            case 2: this.gl.uniform2iv(location, value); break;
+                            case 3: this.gl.uniform3iv(location, value); break;
+                            case 4: this.gl.uniform4iv(location, value); break;
+                            default: this.gl.uniform1iv(location, value); break;
+                        }
+                    } else {
+                        switch (value.length) {
+                            case 2: this.gl.uniform2fv(location, value); break;
+                            case 3: this.gl.uniform3fv(location, value); break;
+                            case 4: this.gl.uniform4fv(location, value); break;
+                            default: this.gl.uniform1fv(location, value); break;
+                        }
+                    }
+                } else {
+                    // Fallback: assume float
+                    switch (value.length) {
+                        case 2: this.gl.uniform2fv(location, value); break;
+                        case 3: this.gl.uniform3fv(location, value); break;
+                        case 4: this.gl.uniform4fv(location, value); break;
+                        default: this.gl.uniform1fv(location, value); break;
+                    }
+                }
+            } else if (value instanceof Int32Array) {
+                // Integer array uniform
+                this.gl.uniform1iv(location, value);
             }
         }
         

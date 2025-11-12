@@ -15,9 +15,9 @@ export default function GeneticAlgorithmPanel({ groups, selectedConfig, onConfig
   const [stats, setStats] = React.useState(null)
   const [error, setError] = React.useState(null)
   const [bestRuleSet, setBestRuleSet] = React.useState(null)
-  const [populationSize, setPopulationSize] = React.useState(20)
-  const [elitismCount, setElitismCount] = React.useState(2)
-  const [maxIterations, setMaxIterations] = React.useState(50)
+  const [populationSize, setPopulationSize] = React.useState(50)
+  const [elitismCount, setElitismCount] = React.useState(10)
+  const [maxIterations, setMaxIterations] = React.useState(500000)
   
   const gaRef = React.useRef(null)
   const gpuComputeRef = React.useRef(null)
@@ -505,12 +505,12 @@ export default function GeneticAlgorithmPanel({ groups, selectedConfig, onConfig
               }}>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '0.75rem' }}>
                   <div>
-                    <div style={{ color: '#94a3b8', marginBottom: '0.25rem' }}>GLSL Generation</div>
+                    <div style={{ color: '#94a3b8', marginBottom: '0.25rem' }}>Uniform Preparation</div>
                     <div style={{ color: '#e2e8f0', fontWeight: 600 }}>
-                      Avg: {stats.timingStats.glslGeneration?.avg.toFixed(2)}ms
-                      {stats.timingStats.glslGeneration?.max > stats.timingStats.glslGeneration?.avg * 2 && (
+                      Avg: {stats.timingStats.uniformPreparation?.avg.toFixed(2)}ms
+                      {stats.timingStats.uniformPreparation?.max > stats.timingStats.uniformPreparation?.avg * 2 && (
                         <span style={{ color: '#f59e0b', marginLeft: '0.5rem' }}>
-                          (Max: {stats.timingStats.glslGeneration.max.toFixed(2)}ms)
+                          (Max: {stats.timingStats.uniformPreparation.max.toFixed(2)}ms)
                         </span>
                       )}
                     </div>
