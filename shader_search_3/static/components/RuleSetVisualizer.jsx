@@ -40,9 +40,9 @@ export default function RuleSetVisualizer({ ruleSet }) {
       { idx: 3, label: 'W' },
       { idx: 4, label: 'C' },
       { idx: 5, label: 'E' },
-      { idx: 1, label: 'SW' },
-      { idx: 2, label: 'S' },
-      { idx: 3, label: 'SE' },
+      { idx: 0, label: 'SW' },
+      { idx: 1, label: 'S' },
+      { idx: 2, label: 'SE' },
     ]
 
     return (

@@ -187,6 +187,7 @@ export class GeneticAlgorithm {
     this.bestFitness = 0
     this.bestIndividual = null
     this.fitnessHistory = []
+    this.timingStats = null // Aggregated timing statistics
     
     this.availableCellTypes = options.availableCellTypes || ['EMPTY', 'SAND', 'WATER', 'STONE']
   }
@@ -217,17 +218,42 @@ export class GeneticAlgorithm {
   
   /**
    * Evaluate fitness for all individuals in the population
-   * @param {Function} fitnessFunction - Async function that takes a ruleSet and returns a fitness score
+   * @param {Function} fitnessFunction - Async function that takes a ruleSet and returns { fitness, timings }
    */
   async evaluateFitness(fitnessFunction) {
+    const allTimings = []
     const evaluations = await Promise.all(
       this.population.map(async (individual) => {
         if (individual.fitness === null) {
-          individual.fitness = await fitnessFunction(individual.ruleSet)
+          const result = await fitnessFunction(individual.ruleSet)
+          // Handle both old format (number) and new format (object with fitness and timings)
+          if (typeof result === 'object' && result !== null && 'fitness' in result) {
+            individual.fitness = result.fitness
+            if (result.timings) {
+              allTimings.push(result.timings)
+            }
+          } else {
+            individual.fitness = result
+          }
         }
         return individual
       })
     )
+    
+    // Calculate aggregated timing statistics
+    if (allTimings.length > 0) {
+      const timingKeys = Object.keys(allTimings[0])
+      this.timingStats = {}
+      for (const key of timingKeys) {
+        const values = allTimings.map(t => t[key] || 0)
+        this.timingStats[key] = {
+          min: Math.min(...values),
+          max: Math.max(...values),
+          avg: values.reduce((sum, v) => sum + v, 0) / values.length,
+          total: values.reduce((sum, v) => sum + v, 0)
+        }
+      }
+    }
     
     // Sort by fitness (descending)
     this.population = evaluations.sort((a, b) => (b.fitness || 0) - (a.fitness || 0))
@@ -300,7 +326,8 @@ export class GeneticAlgorithm {
       averageFitness: fitnesses.reduce((a, b) => a + b, 0) / fitnesses.length,
       worstFitness: Math.min(...fitnesses),
       bestOverallFitness: this.bestFitness,
-      fitnessHistory: this.fitnessHistory
+      fitnessHistory: this.fitnessHistory,
+      timingStats: this.timingStats
     }
   }
   

@@ -493,6 +493,80 @@ export default function GeneticAlgorithmPanel({ groups, selectedConfig, onConfig
             </div>
           </div>
           
+          {stats.timingStats && (
+            <div style={{ marginTop: '1.5rem' }}>
+              <h4>Performance Metrics (Last Generation)</h4>
+              <div style={{
+                backgroundColor: 'rgba(15, 23, 42, 0.4)',
+                border: '1px solid rgba(56, 189, 248, 0.2)',
+                borderRadius: '8px',
+                padding: '1rem',
+                fontSize: '0.85rem'
+              }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '0.75rem' }}>
+                  <div>
+                    <div style={{ color: '#94a3b8', marginBottom: '0.25rem' }}>GLSL Generation</div>
+                    <div style={{ color: '#e2e8f0', fontWeight: 600 }}>
+                      Avg: {stats.timingStats.glslGeneration?.avg.toFixed(2)}ms
+                      {stats.timingStats.glslGeneration?.max > stats.timingStats.glslGeneration?.avg * 2 && (
+                        <span style={{ color: '#f59e0b', marginLeft: '0.5rem' }}>
+                          (Max: {stats.timingStats.glslGeneration.max.toFixed(2)}ms)
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  <div>
+                    <div style={{ color: '#94a3b8', marginBottom: '0.25rem' }}>Buffer Preparation</div>
+                    <div style={{ color: '#e2e8f0', fontWeight: 600 }}>
+                      Avg: {stats.timingStats.bufferPreparation?.avg.toFixed(2)}ms
+                    </div>
+                  </div>
+                  <div>
+                    <div style={{ color: '#94a3b8', marginBottom: '0.25rem' }}>Shader Compilation</div>
+                    <div style={{ color: '#e2e8f0', fontWeight: 600 }}>
+                      Avg: {stats.timingStats.shaderCompilation?.avg.toFixed(2)}ms
+                      {stats.timingStats.shaderCompilation?.max > stats.timingStats.shaderCompilation?.avg * 2 && (
+                        <span style={{ color: '#f59e0b', marginLeft: '0.5rem' }}>
+                          (Max: {stats.timingStats.shaderCompilation.max.toFixed(2)}ms)
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  <div>
+                    <div style={{ color: '#94a3b8', marginBottom: '0.25rem' }}>Buffer Upload</div>
+                    <div style={{ color: '#e2e8f0', fontWeight: 600 }}>
+                      Avg: {stats.timingStats.bufferUpload?.avg.toFixed(2)}ms
+                    </div>
+                  </div>
+                  <div>
+                    <div style={{ color: '#94a3b8', marginBottom: '0.25rem' }}>Simulation Execution</div>
+                    <div style={{ color: '#e2e8f0', fontWeight: 600 }}>
+                      Avg: {stats.timingStats.simulationExecution?.avg.toFixed(2)}ms
+                    </div>
+                  </div>
+                  <div>
+                    <div style={{ color: '#94a3b8', marginBottom: '0.25rem' }}>Test Evaluation</div>
+                    <div style={{ color: '#e2e8f0', fontWeight: 600 }}>
+                      Avg: {stats.timingStats.testEvaluation?.avg.toFixed(2)}ms
+                    </div>
+                  </div>
+                </div>
+                <div style={{
+                  marginTop: '1rem',
+                  paddingTop: '1rem',
+                  borderTop: '1px solid rgba(148, 163, 184, 0.2)'
+                }}>
+                  <div style={{ color: '#38bdf8', fontWeight: 600, fontSize: '0.9rem' }}>
+                    Total Time: {stats.timingStats.total?.avg.toFixed(2)}ms per individual
+                    <span style={{ color: '#94a3b8', fontWeight: 'normal', marginLeft: '0.5rem' }}>
+                      ({stats.timingStats.total?.total.toFixed(2)}ms for entire generation)
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+          
           {bestRuleSet && (
             <div style={{ marginTop: '1.5rem' }}>
               <h4>Best Rule Set Found</h4>

@@ -20,24 +20,43 @@ export function createFitnessEvaluator({ testGroups, gpuCompute, testEvaluator, 
   const kernelCache = new Map()
   
   return async (ruleSet) => {
+    const timings = {
+      glslGeneration: 0,
+      bufferPreparation: 0,
+      shaderCompilation: 0,
+      bufferUpload: 0,
+      simulationExecution: 0,
+      testEvaluation: 0,
+      total: 0
+    }
+    const startTotal = performance.now()
+    
     try {
-      // Generate GLSL shader from rule set
+      // Stage 1: Generate GLSL shader from rule set
+      const startGLSL = performance.now()
       const glslShader = ruleSetToGLSL(ruleSet)
+      timings.glslGeneration = performance.now() - startGLSL
       
-      // Combine test cases to get initial state (frame 0)
+      // Stage 2: Combine test cases to get initial state (frame 0)
+      const startBufferPrep = performance.now()
       const initialBufferData = combineTestCases(testGroups, 0)
       if (!initialBufferData) {
-        return 0.0 // No test cases
+        timings.total = performance.now() - startTotal
+        return { fitness: 0.0, timings } // No test cases
       }
+      timings.bufferPreparation = performance.now() - startBufferPrep
       
-      // Get or compile kernel (cache by shader source to avoid recompiling)
+      // Stage 3: Get or compile kernel (cache by shader source to avoid recompiling)
+      const startCompile = performance.now()
       let kernel = kernelCache.get(glslShader)
       if (!kernel) {
         kernel = gpuCompute.compileKernel(glslShader)
         kernelCache.set(glslShader, kernel)
       }
+      timings.shaderCompilation = performance.now() - startCompile
       
-      // Create input and output buffers using the shared GPUCompute instance
+      // Stage 4: Create input and output buffers using the shared GPUCompute instance
+      const startUpload = performance.now()
       const inputTexture = gpuCompute.createBuffer(
         initialBufferData.width,
         initialBufferData.height,
@@ -56,8 +75,10 @@ export function createFitnessEvaluator({ testGroups, gpuCompute, testEvaluator, 
         )
         texturesToCleanup.push(nextTexture)
       }
+      timings.bufferUpload = performance.now() - startUpload
       
-      // Run simulation for specified number of steps
+      // Stage 5: Run simulation for specified number of steps
+      const startSim = performance.now()
       if (simulationSteps > 0) {
         for (let step = 0; step < simulationSteps; step++) {
           // Run kernel
@@ -82,6 +103,7 @@ export function createFitnessEvaluator({ testGroups, gpuCompute, testEvaluator, 
           }
         }
       }
+      timings.simulationExecution = performance.now() - startSim
       
       // Final result is in nextTexture (or currentTexture if no steps)
       const simulatedTexture = simulationSteps > 0 ? nextTexture : currentTexture
@@ -107,17 +129,21 @@ export function createFitnessEvaluator({ testGroups, gpuCompute, testEvaluator, 
         texturesToCleanup.forEach(tex => {
           gpuCompute.gl.deleteTexture(tex)
         })
-        return 0.0
+        timings.total = performance.now() - startTotal
+        return { fitness: 0.0, timings }
       }
       
       // Upload expected results to texture
+      const startExpectedUpload = performance.now()
       const expectedTexture = gpuCompute.createBuffer(
         expectedBufferData.width,
         expectedBufferData.height,
         expectedBufferData.buffer
       )
+      timings.bufferUpload += performance.now() - startExpectedUpload
       
-      // Evaluate using aggregated shader (returns single score)
+      // Stage 6: Evaluate using aggregated shader (returns single score)
+      const startEval = performance.now()
       const config = {
         totalWidth: initialBufferData.width,
         totalHeight: initialBufferData.height,
@@ -128,6 +154,7 @@ export function createFitnessEvaluator({ testGroups, gpuCompute, testEvaluator, 
       }
       
       const results = testEvaluator.evaluate(simulatedTexture, expectedTexture, config, true)
+      timings.testEvaluation = performance.now() - startEval
       
       // Fitness is the match ratio (first element of results)
       const fitness = results[0] || 0.0
@@ -138,10 +165,12 @@ export function createFitnessEvaluator({ testGroups, gpuCompute, testEvaluator, 
       })
       gpuCompute.gl.deleteTexture(expectedTexture)
       
-      return fitness
+      timings.total = performance.now() - startTotal
+      return { fitness, timings }
     } catch (error) {
       console.error('Fitness evaluation error:', error)
-      return 0.0 // Return 0 fitness on error
+      timings.total = performance.now() - startTotal
+      return { fitness: 0.0, timings } // Return 0 fitness on error
     }
   }
 }
