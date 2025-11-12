@@ -1,6 +1,13 @@
 import React from 'react'
 import { FrameEditorGrid } from './FrameEditorGrid.jsx'
 import { CellTypePalette } from './CellTypePalette.jsx'
+import { CELL_TYPES } from './cellTypes.js'
+
+const createFloatCell = (value) => {
+  const cell = new Float32Array(4)
+  cell[0] = value
+  return cell
+}
 
 const cloneCell = (cell) => {
   const next = new Float32Array(4)
@@ -18,8 +25,47 @@ export const TestCaseEditor = ({ test, onChange, channelIndex = 0 }) => {
 
   if (!test) return null
 
+  const handleDimensionChange = (field, newValue) => {
+    const oldWidth = test.width
+    const oldHeight = test.height
+    const newWidth = field === 'width' ? newValue : oldWidth
+    const newHeight = field === 'height' ? newValue : oldHeight
+
+    // Resize all frames to match new dimensions
+    const resizedFrames = test.frames.map((frame) => {
+      const newFrame = []
+      for (let y = 0; y < newHeight; y++) {
+        const newRow = []
+        for (let x = 0; x < newWidth; x++) {
+          // Get existing cell if within old bounds, otherwise create empty cell
+          if (y < oldHeight && x < oldWidth) {
+            newRow.push(cloneCell(frame[y][x]))
+          } else {
+            newRow.push(createFloatCell(0))
+          }
+        }
+        newFrame.push(newRow)
+      }
+      return newFrame
+    })
+
+    onChange?.({
+      ...test,
+      width: newWidth,
+      height: newHeight,
+      frames: resizedFrames,
+    })
+  }
+
   const handleFieldChange = (field) => (event) => {
-    onChange?.({ ...test, [field]: event.target.value })
+    const value = event.target.value
+    if (field === 'width' || field === 'height') {
+      const numValue = parseInt(value, 10)
+      if (isNaN(numValue) || numValue < 1) return // Don't update if invalid
+      handleDimensionChange(field, numValue)
+    } else {
+      onChange?.({ ...test, [field]: value })
+    }
   }
 
   const handleCellChange = (frameIdx, rowIdx, colIdx, newCell) => {
@@ -56,8 +102,26 @@ export const TestCaseEditor = ({ test, onChange, channelIndex = 0 }) => {
           <input type="text" value={test.name} onChange={handleFieldChange('name')} />
         </div>
         <div className="metadata-inline">
-          <span>Width: {test.width}</span>
-          <span>Height: {test.height}</span>
+          <div className="metadata-field">
+            <label>Width</label>
+            <input
+              type="number"
+              min="1"
+              value={test.width}
+              onChange={handleFieldChange('width')}
+              style={{ width: '80px' }}
+            />
+          </div>
+          <div className="metadata-field">
+            <label>Height</label>
+            <input
+              type="number"
+              min="1"
+              value={test.height}
+              onChange={handleFieldChange('height')}
+              style={{ width: '80px' }}
+            />
+          </div>
           <span>Frames: {test.frames.length}</span>
         </div>
         <div className="metadata-actions">
@@ -74,6 +138,7 @@ export const TestCaseEditor = ({ test, onChange, channelIndex = 0 }) => {
           <CellTypePalette
             selectedType={selectedCellType}
             onSelectType={setSelectedCellType}
+            availableCellTypes={CELL_TYPES}
           />
         </div>
         <div className="frame-editor-list">

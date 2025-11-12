@@ -1,7 +1,9 @@
 import React from 'react'
 import { CELL_TYPES } from './cellTypes.js'
 
-export const CellTypePalette = ({ selectedType, onSelectType, availableCellTypes = [] }) => {
+export const CellTypePalette = ({ selectedType, onSelectType, availableCellTypes }) => {
+  // Use CELL_TYPES as fallback if availableCellTypes is not provided or empty
+  const cellTypes = availableCellTypes && availableCellTypes.length > 0 ? availableCellTypes : CELL_TYPES
   React.useEffect(() => {
     const handleKeyPress = (event) => {
       // Only handle number keys when not typing in an input/textarea
@@ -12,7 +14,7 @@ export const CellTypePalette = ({ selectedType, onSelectType, availableCellTypes
       const key = event.key
       if (key >= '0' && key <= '9') {
         const typeId = parseInt(key, 10)
-        const cellType = availableCellTypes.find((ct) => ct.id === typeId)
+        const cellType = cellTypes.find((ct) => ct.id === typeId)
         if (cellType) {
           event.preventDefault()
           onSelectType?.(typeId)
@@ -22,7 +24,7 @@ export const CellTypePalette = ({ selectedType, onSelectType, availableCellTypes
 
     window.addEventListener('keydown', handleKeyPress)
     return () => window.removeEventListener('keydown', handleKeyPress)
-  }, [onSelectType, availableCellTypes])
+  }, [onSelectType, cellTypes])
 
   return (
     <div className="cell-type-palette">
@@ -31,7 +33,7 @@ export const CellTypePalette = ({ selectedType, onSelectType, availableCellTypes
         <span className="palette-hint">Press 0-9 to select</span>
       </div>
       <div className="palette-buttons">
-        {availableCellTypes.map((cellType) => (
+        {cellTypes.map((cellType) => (
           <button
             key={cellType.id}
             type="button"

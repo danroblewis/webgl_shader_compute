@@ -4,6 +4,7 @@ import { EvolutionConfigs } from './components/EvolutionConfigs.jsx'
 import { TestEditor } from './components/TestEditor.jsx'
 import { GlobalCellTypeSelector } from './components/GlobalCellTypeSelector.jsx'
 import { SimulationPanel } from './components/SimulationPanel.jsx'
+import { TestBufferViewer } from './components/TestBufferViewer.jsx'
 import { getCellTypesFromConfig } from './utils/getCellTypesFromConfig.js'
 import { GridSimulation } from './grid-simulation.js'
 import { ruleSetToGLSL } from './utils/ruleSetToGLSL.js'
@@ -320,6 +321,7 @@ const App = () => {
         onSaveTest={handleSaveTest}
         onDeleteTest={handleDeleteTest}
       />
+      <TestBufferViewer groups={groups} />
     </>
   )
 }
