@@ -4,50 +4,7 @@
     "description": "Baseline simulation with sand, water, stone, and empty cells.",
     "grid_simulation_code": "// Sample GridSimulation subclass for Shader Search 3\nclass StarterSimulation extends GridSimulation {\n  static CellType = {\n    EMPTY: new Float32Array([0, 0, 0, 0]),\n    SAND: new Float32Array([1, 0, 0, 0]),\n    WATER: new Float32Array([2, 0, 0, 0]),\n    STONE: new Float32Array([3, 0, 0, 0]),\n  };\n\n  constructor(options) {\n    super({\n      ...options,\n      cellTypes: StarterSimulation.CellType,\n    });\n  }\n}",
     "rule_set": {
-      "EMPTY": [
-        {
-          "pattern": [
-            "*",
-            "*",
-            "*",
-            "*",
-            "EMPTY",
-            "*",
-            "*",
-            "*",
-            "*"
-          ],
-          "becomes": "SAND"
-        },
-        {
-          "pattern": [
-            "*",
-            "*",
-            "*",
-            "*",
-            "EMPTY",
-            "*",
-            "*",
-            "*",
-            "*"
-          ],
-          "becomes": "SAND"
-        },
-        {
-          "pattern": [
-            "*",
-            "STONE",
-            "*",
-            "*",
-            "EMPTY",
-            "WATER",
-            "*",
-            "*",
-            "*"
-          ],
-          "becomes": "WATER"
-        }
-      ],
+      "EMPTY": [],
       "SAND": [
         {
           "pattern": [
@@ -56,12 +13,12 @@
             "*",
             "*",
             "SAND",
-            "STONE",
-            "STONE",
-            "SAND",
+            "*",
+            "*",
+            "*",
             "*"
           ],
-          "becomes": "SAND"
+          "becomes": "EMPTY"
         }
       ],
       "WATER": [
@@ -69,61 +26,18 @@
           "pattern": [
             "*",
             "*",
-            "SAND",
             "EMPTY",
+            "*",
             "WATER",
             "*",
-            "STONE",
+            "*",
             "*",
             "*"
           ],
-          "becomes": "STONE"
-        },
-        {
-          "pattern": [
-            "*",
-            "STONE",
-            "*",
-            "*",
-            "WATER",
-            "STONE",
-            "*",
-            "*",
-            "WATER"
-          ],
-          "becomes": "STONE"
-        },
-        {
-          "pattern": [
-            "*",
-            "*",
-            "WATER",
-            "*",
-            "WATER",
-            "STONE",
-            "*",
-            "*",
-            "WATER"
-          ],
-          "becomes": "STONE"
+          "becomes": "EMPTY"
         }
       ],
-      "STONE": [
-        {
-          "pattern": [
-            "WATER",
-            "*",
-            "*",
-            "*",
-            "STONE",
-            "WATER",
-            "WATER",
-            "*",
-            "*"
-          ],
-          "becomes": "WATER"
-        }
-      ]
+      "STONE": []
     },
     "id": "f547bcbd-1372-4b35-9957-4c5a1112c693"
   }

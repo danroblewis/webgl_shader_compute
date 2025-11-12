@@ -77,9 +77,10 @@ void main() {
     // Each test case takes up testCaseWidth + spacing (except the last one)
     float testCaseXOffset = testCaseIndex * (u_testCaseWidth + u_spacing);
     
-    // Initialize match counter
-    float matchCount = 0.0;
-    float totalPixels = 0.0;
+    // Initialize counters
+    float correctCount = 0.0;  // Correct non-empty cells (expected non-empty and matches)
+    float incorrectCount = 0.0;  // Incorrect non-empty cells (expected non-empty but wrong, OR expected empty but simulated non-empty)
+    float totalPixels = 0.0;  // Total pixels in test case (for normalization)
     
     // Iterate through all pixels in this test case's region
     // We need to sample every pixel in the test case area
@@ -100,23 +101,34 @@ void main() {
             float simulatedValue = getCell(u_simulated, texCoord);
             float expectedValue = getCell(u_expected, texCoord);
             
-            // Only count non-empty cells (cell type 0 is EMPTY)
-            // Check if expected value is non-empty
-            if (expectedValue > 0.1) {
-                totalPixels += 1.0;
-                // Compare and count matches
-                if (cellsMatch(simulatedValue, expectedValue)) {
-                    matchCount += 1.0;
-                }
+            // Count all pixels for normalization
+            totalPixels += 1.0;
+            
+            bool expectedIsEmpty = expectedValue <= 0.1;
+            bool simulatedIsEmpty = simulatedValue <= 0.1;
+            
+            // Count correct non-empty cells: expected is non-empty and matches
+            if (!expectedIsEmpty && cellsMatch(simulatedValue, expectedValue)) {
+                correctCount += 1.0;
+            }
+            
+            // Count incorrect non-empty cells:
+            // 1. Expected is non-empty but doesn't match (and simulated is non-empty)
+            // 2. Expected is empty but simulated is non-empty (creating cells where there shouldn't be)
+            if ((!expectedIsEmpty && !cellsMatch(simulatedValue, expectedValue) && !simulatedIsEmpty) ||
+                (expectedIsEmpty && !simulatedIsEmpty)) {
+                incorrectCount += 1.0;
             }
         }
     }
     
-    // Output normalized match count (0.0 to 1.0)
-    // R = match ratio (matches / total pixels)
-    // G = total pixels (for debugging/verification)
-    float matchRatio = totalPixels > 0.0 ? matchCount / totalPixels : 0.0;
-    fragColor = vec4(matchRatio, totalPixels, 0.0, 1.0);
+    // Fitness = correctCount - incorrectCount, normalized by total pixels
+    // This gives a score from -1.0 (all wrong) to 1.0 (all correct)
+    // R = fitness score (normalized)
+    // G = correct count
+    // B = incorrect count
+    float fitness = totalPixels > 0.0 ? (correctCount - incorrectCount) / totalPixels : 0.0;
+    fragColor = vec4(fitness, correctCount, incorrectCount, 1.0);
 }
 `
 }
@@ -159,7 +171,8 @@ bool cellsMatch(float a, float b) {
 }
 
 void main() {
-    float totalMatches = 0.0;
+    float totalCorrect = 0.0;
+    float totalIncorrect = 0.0;
     float totalPixels = 0.0;
     
     // Iterate through all test cases
@@ -180,21 +193,34 @@ void main() {
                 float simulatedValue = getCell(u_simulated, texCoord);
                 float expectedValue = getCell(u_expected, texCoord);
                 
-                // Only count non-empty cells (cell type 0 is EMPTY)
-                // Check if expected value is non-empty
-                if (expectedValue > 0.1) {
-                    totalPixels += 1.0;
-                    if (cellsMatch(simulatedValue, expectedValue)) {
-                        totalMatches += 1.0;
-                    }
+                // Count all pixels for normalization
+                totalPixels += 1.0;
+                
+                bool expectedIsEmpty = expectedValue <= 0.1;
+                bool simulatedIsEmpty = simulatedValue <= 0.1;
+                
+                // Count correct non-empty cells: expected is non-empty and matches
+                if (!expectedIsEmpty && cellsMatch(simulatedValue, expectedValue)) {
+                    totalCorrect += 1.0;
+                }
+                
+                // Count incorrect non-empty cells:
+                // 1. Expected is non-empty but doesn't match (and simulated is non-empty)
+                // 2. Expected is empty but simulated is non-empty (creating cells where there shouldn't be)
+                if ((!expectedIsEmpty && !cellsMatch(simulatedValue, expectedValue) && !simulatedIsEmpty) ||
+                    (expectedIsEmpty && !simulatedIsEmpty)) {
+                    totalIncorrect += 1.0;
                 }
             }
         }
     }
     
-    // Output aggregated result
-    float matchRatio = totalPixels > 0.0 ? totalMatches / totalPixels : 0.0;
-    fragColor = vec4(matchRatio, totalMatches, totalPixels, 1.0);
+    // Fitness = totalCorrect - totalIncorrect, normalized by total pixels
+    // R = fitness score (normalized)
+    // G = total correct count
+    // B = total incorrect count
+    float fitness = totalPixels > 0.0 ? (totalCorrect - totalIncorrect) / totalPixels : 0.0;
+    fragColor = vec4(fitness, totalCorrect, totalIncorrect, 1.0);
 }
 `
 }

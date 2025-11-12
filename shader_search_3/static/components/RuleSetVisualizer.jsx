@@ -94,14 +94,31 @@ export default function RuleSetVisualizer({ ruleSet }) {
         <div style={{
           textAlign: 'center',
           fontSize: '0.85rem',
-          color: '#94a3b8',
-          marginTop: '0.25rem'
+          marginTop: '0.25rem',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: '0.5rem'
         }}>
-          <span style={{ color: '#64748b' }}>→</span>{' '}
+          <span style={{ color: '#64748b' }}>→</span>
           <span style={{
-            color: getCellTypeInfo(becomes)?.color || '#fff',
-            fontWeight: 'bold'
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '0.25rem',
+            padding: '0.25rem 0.5rem',
+            backgroundColor: getCellTypeInfo(becomes)?.color || '#222222',
+            color: '#fff',
+            fontWeight: 'bold',
+            borderRadius: '4px',
+            border: '1px solid rgba(255, 255, 255, 0.2)'
           }}>
+            <span style={{
+              display: 'inline-block',
+              width: '12px',
+              height: '12px',
+              backgroundColor: 'rgba(255, 255, 255, 0.3)',
+              borderRadius: '2px'
+            }} />
             {getCellTypeInfo(becomes)?.name || becomes}
           </span>
         </div>

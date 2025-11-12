@@ -1,5 +1,6 @@
 import { SectionHeader } from './SectionHeader.jsx'
 import RuleSetVisualizer from './RuleSetVisualizer.jsx'
+import { ruleSetToGLSL } from '../utils/ruleSetToGLSL.js'
 
 export const EvolutionConfigs = ({ 
   configs = [], 
@@ -28,10 +29,28 @@ export const EvolutionConfigs = ({
             <div className="meta">Identifier: {cfg.id}</div>
             
             {cfg.rule_set && (
-              <details open style={{ marginTop: '0.75rem' }} onClick={(e) => e.stopPropagation()}>
-                <summary>Rule Set</summary>
-                <RuleSetVisualizer ruleSet={cfg.rule_set} />
-              </details>
+              <>
+                <details open style={{ marginTop: '0.75rem' }} onClick={(e) => e.stopPropagation()}>
+                  <summary>Rule Set</summary>
+                  <RuleSetVisualizer ruleSet={cfg.rule_set} />
+                </details>
+                <details style={{ marginTop: '0.75rem' }} onClick={(e) => e.stopPropagation()}>
+                  <summary>Generated GLSL</summary>
+                  <pre style={{ 
+                    whiteSpace: 'pre-wrap', 
+                    marginTop: '0.75rem', 
+                    fontSize: '0.82rem',
+                    backgroundColor: 'rgba(15, 23, 42, 0.8)',
+                    padding: '1rem',
+                    borderRadius: '6px',
+                    border: '1px solid rgba(148, 163, 184, 0.2)',
+                    overflow: 'auto',
+                    maxHeight: '400px'
+                  }}>
+                    {ruleSetToGLSL(cfg.rule_set)}
+                  </pre>
+                </details>
+              </>
             )}
             
             <details style={{ marginTop: '0.75rem' }} onClick={(e) => e.stopPropagation()}>

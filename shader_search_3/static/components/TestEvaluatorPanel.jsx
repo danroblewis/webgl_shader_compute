@@ -357,26 +357,54 @@ export default function TestEvaluatorPanel({ groups, selectedConfig }) {
                 </div>
                 <div className="result-stats">
                   <div>
-                    <span className="stat-label">Match Ratio:</span>
-                    <span className="stat-value">
-                      {(result.matchRatio * 100).toFixed(2)}%
+                    <span className="stat-label">Fitness:</span>
+                    <span className="stat-value" style={{
+                      color: result.fitness >= 0 ? '#10b981' : '#ef4444'
+                    }}>
+                      {(result.fitness * 100).toFixed(2)}%
                     </span>
                   </div>
                   <div>
-                    <span className="stat-label">Matches:</span>
+                    <span className="stat-label">Correct:</span>
                     <span className="stat-value">
-                      {Math.round(result.matchCount)} / {result.totalPixels}
+                      {Math.round(result.correctCount)}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="stat-label">Incorrect:</span>
+                    <span className="stat-value" style={{ color: '#ef4444' }}>
+                      {Math.round(result.incorrectCount)}
                     </span>
                   </div>
                 </div>
-                <div className="result-bar">
+                <div className="result-bar" style={{
+                  position: 'relative',
+                  backgroundColor: 'rgba(15, 23, 42, 0.5)',
+                  height: '24px',
+                  borderRadius: '4px',
+                  overflow: 'hidden'
+                }}>
+                  {/* Center line at 0 */}
+                  <div style={{
+                    position: 'absolute',
+                    left: '50%',
+                    top: 0,
+                    bottom: 0,
+                    width: '1px',
+                    backgroundColor: 'rgba(148, 163, 184, 0.5)',
+                    zIndex: 1
+                  }} />
+                  {/* Fitness bar (can be negative) */}
                   <div
-                    className="result-bar-fill"
                     style={{
-                      width: `${result.matchRatio * 100}%`,
-                      backgroundColor: result.matchRatio > 0.9 ? '#10b981' :
-                                      result.matchRatio > 0.7 ? '#f59e0b' :
-                                      '#ef4444'
+                      position: 'absolute',
+                      left: result.fitness >= 0 ? '50%' : `${50 + result.fitness * 50}%`,
+                      width: `${Math.abs(result.fitness) * 50}%`,
+                      height: '100%',
+                      backgroundColor: result.fitness >= 0 ? 
+                        (result.fitness > 0.5 ? '#10b981' : result.fitness > 0.2 ? '#f59e0b' : '#ef4444') :
+                        '#ef4444',
+                      transition: 'width 0.3s ease, left 0.3s ease'
                     }}
                   />
                 </div>
@@ -385,11 +413,18 @@ export default function TestEvaluatorPanel({ groups, selectedConfig }) {
           </div>
           {evaluationResults.perTestCase.length > 0 && (
             <div className="aggregated-result">
-              <strong>Average Match Ratio:</strong>{' '}
-              {(
-                evaluationResults.perTestCase.reduce((sum, r) => sum + r.matchRatio, 0) /
-                evaluationResults.perTestCase.length * 100
-              ).toFixed(2)}%
+              <strong>Average Fitness:</strong>{' '}
+              <span style={{
+                color: (
+                  evaluationResults.perTestCase.reduce((sum, r) => sum + r.fitness, 0) /
+                  evaluationResults.perTestCase.length
+                ) >= 0 ? '#10b981' : '#ef4444'
+              }}>
+                {(
+                  evaluationResults.perTestCase.reduce((sum, r) => sum + r.fitness, 0) /
+                  evaluationResults.perTestCase.length * 100
+                ).toFixed(2)}%
+              </span>
             </div>
           )}
         </div>

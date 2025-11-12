@@ -24,6 +24,7 @@ export default function GeneticAlgorithmPanel({ groups, selectedConfig, onConfig
   const evaluatorRef = React.useRef(null)
   const fitnessEvaluatorRef = React.useRef(null)
   const animationFrameRef = React.useRef(null)
+  const lastCheckpointRef = React.useRef(0)
   
   // Initialize GPU compute and evaluator
   React.useEffect(() => {
@@ -117,7 +118,24 @@ export default function GeneticAlgorithmPanel({ groups, selectedConfig, onConfig
         // Update stats
         const updatedStats = gaRef.current.getStats()
         setStats(updatedStats)
-        setBestRuleSet(gaRef.current.getBestRuleSet())
+        const currentBest = gaRef.current.getBestRuleSet()
+        setBestRuleSet(currentBest)
+        
+        // Checkpoint: Save every 50 generations
+        const checkpointInterval = 50
+        const currentGen = updatedStats.generation
+        if (currentGen > 0 && currentGen % checkpointInterval === 0 && currentGen > lastCheckpointRef.current) {
+          lastCheckpointRef.current = currentGen
+          if (currentBest && selectedConfig) {
+            try {
+              await saveBestRuleSet(currentBest)
+              console.log(`Checkpoint saved at generation ${currentGen}`)
+            } catch (err) {
+              console.error(`Failed to save checkpoint at generation ${currentGen}:`, err)
+              // Don't stop evolution on checkpoint save failure
+            }
+          }
+        }
         
         if (cancelled) return
         
@@ -216,6 +234,9 @@ export default function GeneticAlgorithmPanel({ groups, selectedConfig, onConfig
       // Initialize with seed rule set from EvolutionConfig
       gaRef.current.initialize(selectedConfig.rule_set || {})
       
+      // Reset checkpoint tracking
+      lastCheckpointRef.current = 0
+      
       setError(null)
       setIsRunning(true)
     } catch (err) {
@@ -234,6 +255,7 @@ export default function GeneticAlgorithmPanel({ groups, selectedConfig, onConfig
   const handleReset = () => {
     handleStop()
     gaRef.current = null
+    lastCheckpointRef.current = 0
     setStats(null)
     setBestRuleSet(null)
     setError(null)

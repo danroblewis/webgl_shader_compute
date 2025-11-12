@@ -124,7 +124,7 @@ export class TestEvaluator {
    * @param {WebGLTexture} expectedTexture - Expected results texture
    * @param {Object} config - Configuration
    * @returns {Array<Object>} Array of results, one per test case
-   *   Each object: { matchRatio: number, totalPixels: number, matchCount: number }
+   *   Each object: { fitness: number, correctCount: number, incorrectCount: number, totalPixels: number }
    */
   getPerTestCaseResults(simulatedTexture, expectedTexture, config) {
     const results = this.evaluate(simulatedTexture, expectedTexture, config, false)
@@ -133,14 +133,19 @@ export class TestEvaluator {
 
     for (let i = 0; i < numTestCases; i++) {
       const baseIndex = i * 4 // RGBA per pixel
-      const matchRatio = results[baseIndex] // R channel
-      const totalPixels = results[baseIndex + 1] // G channel
-      const matchCount = matchRatio * totalPixels
+      const fitness = results[baseIndex] // R channel: (correctCount - incorrectCount) / totalPixels
+      const correctCount = results[baseIndex + 1] // G channel
+      const incorrectCount = results[baseIndex + 2] // B channel
+      // Calculate totalPixels from correctCount and incorrectCount (approximate)
+      // Actually, we can't get totalPixels directly, but we can calculate it if needed
+      // For now, we'll use correctCount + incorrectCount as an approximation of non-empty cells
+      const totalPixels = correctCount + incorrectCount // This is approximate
 
       perTestCaseResults.push({
-        matchRatio,
-        totalPixels,
-        matchCount
+        fitness, // Can be negative (penalty for incorrect cells)
+        correctCount,
+        incorrectCount,
+        totalPixels
       })
     }
 
@@ -153,16 +158,17 @@ export class TestEvaluator {
    * @param {WebGLTexture} expectedTexture - Expected results texture
    * @param {Object} config - Configuration
    * @returns {Object} Aggregated result
-   *   { matchRatio: number, totalMatches: number, totalPixels: number }
+   *   { fitness: number, totalCorrect: number, totalIncorrect: number, totalPixels: number }
    */
   getAggregatedResult(simulatedTexture, expectedTexture, config) {
     const results = this.evaluate(simulatedTexture, expectedTexture, config, true)
     
-    // Results are in a single pixel: [matchRatio, totalMatches, totalPixels, 1.0]
+    // Results are in a single pixel: [fitness, totalCorrect, totalIncorrect, 1.0]
     return {
-      matchRatio: results[0],
-      totalMatches: results[1],
-      totalPixels: results[2]
+      fitness: results[0], // (totalCorrect - totalIncorrect) / totalPixels, can be negative
+      totalCorrect: results[1],
+      totalIncorrect: results[2],
+      totalPixels: results[1] + results[2] // Approximate
     }
   }
 
