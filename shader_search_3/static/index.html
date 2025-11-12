@@ -108,11 +108,21 @@
         }
         
         // Handle export statements BEFORE replacing imports and transforming
-        // Find all exported consts to add to exports later
+        // Find all exported consts, functions, and classes to add to exports later
         const exportedConsts = []
+        const exportedFunctions = []
+        const exportedClasses = []
         code = code.replace(/export\s+const\s+(\w+)\s*=/g, (match, name) => {
           exportedConsts.push(name)
           return `const ${name} =`
+        })
+        code = code.replace(/export\s+function\s+(\w+)/g, (match, name) => {
+          exportedFunctions.push(name)
+          return `function ${name}`
+        })
+        code = code.replace(/export\s+class\s+(\w+)/g, (match, name) => {
+          exportedClasses.push(name)
+          return `class ${name}`
         })
         
         // Replace all imports with loaded modules from importMap
@@ -145,9 +155,10 @@
           }).code
         }
         
-        // Add exports for exported consts at the end of the code
-        if (exportedConsts.length > 0) {
-          const exportStatements = exportedConsts.map(name => `exports.${name} = ${name}`).join('; ')
+        // Add exports for exported consts, functions, and classes at the end of the code
+        const allExports = [...exportedConsts, ...exportedFunctions, ...exportedClasses]
+        if (allExports.length > 0) {
+          const exportStatements = allExports.map(name => `exports.${name} = ${name}`).join('; ')
           code = code + '; ' + exportStatements
         }
         code = code.replace(/export\s+const\s+\{([^}]+)\}\s*=/g, 'const {$1} =')
@@ -156,45 +167,58 @@
           return `const __defaultExport = ${name}; exports.default = __defaultExport; ${name}`
         })
         code = code.replace(/export\s+default\s+/g, 'const __defaultExport = ')
-        // For named exports, add to exports but keep in local scope
+        // For named exports, replace with export statements but keep original code
+        const namedExports = []
         code = code.replace(/export\s+\{([^}]+)\}/g, (match, names) => {
-          const exports = names.split(',').map(n => {
+          const exportStatements = names.split(',').map(n => {
             const trimmed = n.trim()
             const [name, alias] = trimmed.split(' as ')
             const exportName = alias || name
             return `exports.${exportName} = ${name}`
           }).join('; ')
-          return exports
+          namedExports.push(exportStatements)
+          return '' // Remove the export statement, we'll add exports at the end
         })
+        // Add named export statements at the end
+        if (namedExports.length > 0) {
+          code = code + '; ' + namedExports.join('; ')
+        }
         
-        // Execute module - make React available for JSX transformation
+        // Execute module - make React available for JSX transformation (only for .jsx files)
         const exports = {}
         const moduleObj = { exports }
-        // Check if React is already declared in the code
-        const hasReactDeclared = /const\s+React\s*=/.test(code) || /let\s+React\s*=/.test(code) || /var\s+React\s*=/.test(code)
         
-        // Extract React from importMap - check all possible keys
-        let React = importMap['React'] || importMap['react']
-        // If React wasn't imported directly, try to get it from the importmap
-        if (!React && !hasReactDeclared) {
-          const importMapEntry = document.querySelector('script[type="importmap"]')
-          if (importMapEntry) {
-            const importMapData = JSON.parse(importMapEntry.textContent)
-            const reactUrl = importMapData.imports?.['react']
-            if (reactUrl) {
-              // Import React on the fly if needed
-              const reactModule = await import(reactUrl)
-              React = reactModule.default || reactModule
+        if (isJSX) {
+          // Check if React is already declared in the code
+          const hasReactDeclared = /const\s+React\s*=/.test(code) || /let\s+React\s*=/.test(code) || /var\s+React\s*=/.test(code)
+          
+          // Extract React from importMap - check all possible keys
+          let React = importMap['React'] || importMap['react']
+          // If React wasn't imported directly, try to get it from the importmap
+          if (!React && !hasReactDeclared) {
+            const importMapEntry = document.querySelector('script[type="importmap"]')
+            if (importMapEntry) {
+              const importMapData = JSON.parse(importMapEntry.textContent)
+              const reactUrl = importMapData.imports?.['react']
+              if (reactUrl) {
+                // Import React on the fly if needed
+                const reactModule = await import(reactUrl)
+                React = reactModule.default || reactModule
+              }
             }
           }
-        }
-        // If still no React and not declared, create a dummy (shouldn't happen)
-        if (!hasReactDeclared) {
-          React = React || { createElement: () => {} }
-          const func = new Function('importMap', 'React', 'module', 'exports', code)
-          func(importMap, React, moduleObj, exports)
+          // If still no React and not declared, create a dummy (shouldn't happen)
+          if (!hasReactDeclared) {
+            React = React || { createElement: () => {} }
+            const func = new Function('importMap', 'React', 'module', 'exports', code)
+            func(importMap, React, moduleObj, exports)
+          } else {
+            // React is already declared in code, don't pass it as parameter
+            const func = new Function('importMap', 'module', 'exports', code)
+            func(importMap, moduleObj, exports)
+          }
         } else {
-          // React is already declared in code, don't pass it as parameter
+          // For .js files, no React needed
           const func = new Function('importMap', 'module', 'exports', code)
           func(importMap, moduleObj, exports)
         }

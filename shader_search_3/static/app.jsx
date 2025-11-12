@@ -1,7 +1,12 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { createRoot } from 'react-dom/client'
 import { EvolutionConfigs } from './components/EvolutionConfigs.jsx'
 import { TestEditor } from './components/TestEditor.jsx'
+import { GlobalCellTypeSelector } from './components/GlobalCellTypeSelector.jsx'
+import { SimulationPanel } from './components/SimulationPanel.jsx'
+import { getCellTypesFromConfig } from './utils/getCellTypesFromConfig.js'
+import { GridSimulation } from './grid-simulation.js'
+import { ruleSetToGLSL } from './utils/ruleSetToGLSL.js'
 
 const API_BASE = '/api'
 
@@ -64,6 +69,9 @@ const App = () => {
   const [configs, setConfigs] = useState([])
   const [configLoading, setConfigLoading] = useState(false)
   const [configError, setConfigError] = useState(null)
+  const [selectedConfig, setSelectedConfig] = useState(null)
+  const [selectedCellType, setSelectedCellType] = useState(0)
+  const [simulation, setSimulation] = useState(null)
 
   const [groups, setGroups] = useState([])
   const [groupsLoading, setGroupsLoading] = useState(false)
@@ -201,13 +209,104 @@ const App = () => {
     await saveGroup(groupId, updatedGroup)
   }
 
+  // Get available cell types from selected config
+  const availableCellTypes = useMemo(() => {
+    return getCellTypesFromConfig(selectedConfig)
+  }, [selectedConfig])
+
+  // Ensure selected cell type is valid for current config
+  useEffect(() => {
+    if (availableCellTypes.length > 0) {
+      const isValid = availableCellTypes.some(ct => ct.id === selectedCellType)
+      if (!isValid) {
+        // Reset to first available cell type
+        setSelectedCellType(availableCellTypes[0].id)
+      }
+    }
+  }, [availableCellTypes, selectedCellType])
+
+  // Create simulation instance when config changes
+  useEffect(() => {
+    if (!selectedConfig) {
+      setSimulation(null)
+      return
+    }
+
+    try {
+      // Create a canvas for GPU compute (will be used for display too)
+      const computeCanvas = document.createElement('canvas')
+      computeCanvas.width = 50 // Default size, could be configurable
+      computeCanvas.height = 50
+      // Store canvas reference so SimulationPanel can use it
+      computeCanvas.id = 'simulation-canvas'
+      
+      // Generate GLSL shader from rule set
+      const glslShader = ruleSetToGLSL(selectedConfig.rule_set)
+      
+      // Evaluate the GridSimulation subclass code
+      let SimulationClass
+      try {
+        // Create a function that evaluates the code with GridSimulation in scope
+        const evalCode = `
+          ${selectedConfig.grid_simulation_code}
+          return typeof StarterSimulation !== 'undefined' ? StarterSimulation : 
+                 typeof Simulation !== 'undefined' ? Simulation : null;
+        `
+        SimulationClass = new Function('GridSimulation', evalCode)(GridSimulation)
+        
+        // If no class was found, use GridSimulation directly
+        if (!SimulationClass) {
+          SimulationClass = GridSimulation
+        }
+      } catch (evalError) {
+        console.warn('Failed to evaluate simulation code, using GridSimulation directly:', evalError)
+        SimulationClass = GridSimulation
+      }
+      
+      // Create simulation instance
+      const sim = new SimulationClass({
+        width: 50, // Default size, could be configurable
+        height: 50,
+        canvas: computeCanvas,
+        rule: glslShader,
+        initialState: 'empty',
+      })
+      
+      setSimulation(sim)
+      
+      return () => {
+        // Cleanup simulation when config changes
+        sim.dispose()
+      }
+    } catch (err) {
+      console.error('Failed to create simulation:', err)
+      setSimulation(null)
+      return () => {}
+    }
+  }, [selectedConfig?.id, selectedConfig?.rule_set, selectedConfig?.grid_simulation_code])
+
   return (
     <>
+      <div className="app-header">
+        <GlobalCellTypeSelector
+          selectedType={selectedCellType}
+          onSelectType={setSelectedCellType}
+          availableCellTypes={availableCellTypes}
+        />
+      </div>
       <EvolutionConfigs
         configs={configs}
         loading={configLoading}
         error={configError}
         onRefresh={loadConfigs}
+        selectedConfig={selectedConfig}
+        onSelectConfig={setSelectedConfig}
+      />
+      <SimulationPanel
+        simulation={simulation}
+        config={selectedConfig}
+        selectedCellType={selectedCellType}
+        onCellTypeChange={setSelectedCellType}
       />
       <TestEditor
         groups={groups}

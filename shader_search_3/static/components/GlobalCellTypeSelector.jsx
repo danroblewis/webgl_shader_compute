@@ -1,7 +1,7 @@
 import React from 'react'
 import { CELL_TYPES } from './cellTypes.js'
 
-export const CellTypePalette = ({ selectedType, onSelectType, availableCellTypes = [] }) => {
+export const GlobalCellTypeSelector = ({ selectedType, onSelectType, availableCellTypes = CELL_TYPES }) => {
   React.useEffect(() => {
     const handleKeyPress = (event) => {
       // Only handle number keys when not typing in an input/textarea
@@ -25,17 +25,17 @@ export const CellTypePalette = ({ selectedType, onSelectType, availableCellTypes
   }, [onSelectType, availableCellTypes])
 
   return (
-    <div className="cell-type-palette">
-      <div className="palette-header">
-        <h4>Cell Types</h4>
-        <span className="palette-hint">Press 0-9 to select</span>
+    <div className="global-cell-type-selector">
+      <div className="selector-header">
+        <h4>Cell Type</h4>
+        <span className="selector-hint">Press 0-9</span>
       </div>
-      <div className="palette-buttons">
+      <div className="selector-buttons">
         {availableCellTypes.map((cellType) => (
           <button
             key={cellType.id}
             type="button"
-            className={`palette-button ${selectedType === cellType.id ? 'selected' : ''}`}
+            className={`selector-button ${selectedType === cellType.id ? 'selected' : ''}`}
             onClick={() => onSelectType?.(cellType.id)}
             style={{
               backgroundColor: cellType.color,
@@ -43,8 +43,8 @@ export const CellTypePalette = ({ selectedType, onSelectType, availableCellTypes
             }}
             title={`${cellType.name} (Press ${cellType.id})`}
           >
-            <span className="palette-button-number">{cellType.id}</span>
-            <span className="palette-button-name">{cellType.name}</span>
+            <span className="selector-button-number">{cellType.id}</span>
+            <span className="selector-button-name">{cellType.name}</span>
           </button>
         ))}
       </div>
