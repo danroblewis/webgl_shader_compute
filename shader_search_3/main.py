@@ -7,6 +7,8 @@ from pathlib import Path
 from typing import List
 
 from fastapi import FastAPI, HTTPException, Response, status
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 
 from models import (
     EvolutionConfig,
@@ -18,23 +20,23 @@ from repositories import EvolutionConfigRepository, TestCaseGroupRepository
 
 app = FastAPI(title="Shader Search 3", version="3.0.0")
 
-DATA_DIR = Path(__file__).resolve().parent / "data"
+BASE_DIR = Path(__file__).resolve().parent
+DATA_DIR = BASE_DIR / "data"
+STATIC_DIR = BASE_DIR / "static"
+
 CONFIG_REPO = EvolutionConfigRepository(DATA_DIR / "evolution_configs.json")
 TEST_GROUP_REPO = TestCaseGroupRepository(DATA_DIR / "test_case_groups.json")
 
+app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
+
 
 @app.get("/")
-async def root():
-    """Basic welcome endpoint."""
-    return {
-        "message": "Shader Search 3 API",
-        "version": app.version,
-        "docs": "/docs",
-        "resources": {
-            "evolution_configs": "/api/evolution-configs",
-            "test_case_groups": "/api/test-case-groups",
-        },
-    }
+async def root() -> FileResponse:
+    """Serve the single-page React application."""
+    index_file = STATIC_DIR / "index.html"
+    if not index_file.exists():
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="SPA entrypoint missing")
+    return FileResponse(index_file)
 
 
 @app.get("/health")

@@ -22,8 +22,10 @@ def client(tmp_path: Path, monkeypatch) -> TestClient:
 def test_root(client: TestClient):
     response = client.get("/")
     assert response.status_code == 200
-    body = response.json()
-    assert body["message"] == "Shader Search 3 API"
+    assert "text/html" in response.headers.get("content-type", "")
+    body = response.text
+    assert "<!DOCTYPE html>" in body
+    assert "Shader Search 3" in body
 
 
 def test_evolution_config_endpoints(client: TestClient):

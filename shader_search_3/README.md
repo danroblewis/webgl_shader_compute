@@ -1,6 +1,6 @@
 # Shader Search 3 - FastAPI Server
 
-Minimal FastAPI backend scaffold for future shader search tooling.
+Minimal FastAPI backend with a CDN-powered React single-page app for managing shader evolution data.
 
 ## Setup
 
@@ -23,9 +23,13 @@ python main.py
 uvicorn main:app --reload --host 0.0.0.0 --port 8000
 ```
 
-## Endpoints
+## Frontend
 
-- `GET /` – Welcome message
+- `GET /` serves `static/index.html`, a React SPA loaded from CDNjs (no bundlers required).
+- Additional SPA assets (if any) live under `static/` and are served at `/static/*`.
+
+## API Endpoints
+
 - `GET /health` – Health check
 - `GET /api/evolution-configs` – List evolution configurations
 - `POST /api/evolution-configs` – Create configuration
