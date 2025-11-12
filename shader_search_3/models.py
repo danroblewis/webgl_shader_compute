@@ -40,27 +40,34 @@ class EvolutionConfig(EvolutionConfigBase):
 
 
 class TestCaseBase(BaseModel):
-    __test__ = False
-
     name: str = Field(..., description="Test case name")
     width: int = Field(..., gt=0)
     height: int = Field(..., gt=0)
-    frames: List[List[List[int]]] = Field(..., description="List of frames; each frame is a 2D grid")
+    frames: List[List[List[List[float]]]] = Field(..., description="List of frames; each frame is a 2D grid of RGBA vectors")
 
-    @field_validator("frames")
+    @field_validator("frames", mode="before")
     @classmethod
-    def validate_frames(cls, frames: List[List[List[int]]]) -> List[List[List[int]]]:
+    def normalize_frames(cls, frames: List[List[List[Any]]]) -> List[List[List[float]]]:
         if not frames:
             raise ValueError("At least one frame is required")
-        height = len(frames[0])
-        width = len(frames[0][0]) if frames[0] else 0
+
+        normalized: List[List[List[float]]] = []
         for frame in frames:
-            if len(frame) != height:
-                raise ValueError("All frames must have the same height")
+            normalized_frame: List[List[float]] = []
             for row in frame:
-                if len(row) != width:
-                    raise ValueError("All rows in frames must have the same width")
-        return frames
+                normalized_row: List[float] = []
+                for cell in row:
+                    if isinstance(cell, (list, tuple)):
+                        vec = [float(x) for x in cell[:4]]
+                        while len(vec) < 4:
+                            vec.append(0.0)
+                    else:
+                        value = float(cell)
+                        vec = [value, 0.0, 0.0, 0.0]
+                    normalized_row.append(vec)
+                normalized_frame.append(normalized_row)
+            normalized.append(normalized_frame)
+        return normalized
 
     @model_validator(mode="after")
     def ensure_dimensions_match(self) -> "TestCaseBase":
@@ -68,6 +75,15 @@ class TestCaseBase(BaseModel):
         frame_width = len(self.frames[0][0]) if self.frames[0] else 0
         if self.height != frame_height or self.width != frame_width:
             raise ValueError("Provided width/height must match frame dimensions")
+        for frame in self.frames:
+            if len(frame) != frame_height:
+                raise ValueError("All frames must have the same height")
+            for row in frame:
+                if len(row) != frame_width:
+                    raise ValueError("All rows in frames must have the same width")
+                for cell in row:
+                    if len(cell) != 4:
+                        raise ValueError("Each cell must contain 4 values (RGBA)")
         return self
 
 

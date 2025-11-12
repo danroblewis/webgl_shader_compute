@@ -1,4 +1,4 @@
-const GridPreview = ({ test }) => {
+const GridPreview = ({ test, channelIndex = 0 }) => {
   if (!test?.frames?.length) return null
 
   return (
@@ -6,7 +6,7 @@ const GridPreview = ({ test }) => {
       <div className="meta">
         {test.width}×{test.height} • {test.frames.length} frame(s)
       </div>
-      <CARun frames={test.frames} />
+      <CARun frames={test.frames} channelIndex={channelIndex} />
     </div>
   )
 }

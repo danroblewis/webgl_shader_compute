@@ -1,4 +1,4 @@
-const CARun = ({ frames = [], showLabels = true }) => {
+const CARun = ({ frames = [], showLabels = true, channelIndex = 0 }) => {
   if (!frames.length) return null
 
   return (
@@ -6,7 +6,7 @@ const CARun = ({ frames = [], showLabels = true }) => {
       {frames.map((frame, index) => (
         <div className="ca-run-frame" key={`frame-${index}`}>
           {showLabels && <div className="ca-run-frame-label">Frame {index + 1}</div>}
-          <CAFrame frame={frame} />
+          <CAFrame frame={frame} channelIndex={channelIndex} />
         </div>
       ))}
     </div>
