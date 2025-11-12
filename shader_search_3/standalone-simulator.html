@@ -225,6 +225,7 @@
         const [componentsLoaded, setComponentsLoaded] = React.useState(false)
         const [SimulationPanel, setSimulationPanel] = React.useState(null)
         const [GlobalCellTypeSelector, setGlobalCellTypeSelector] = React.useState(null)
+        const [RuleSetVisualizer, setRuleSetVisualizer] = React.useState(null)
         const [GridSimulation, setGridSimulation] = React.useState(null)
         const [ruleSetToGLSL, setRuleSetToGLSL] = React.useState(null)
         const [getCellTypesFromConfig, setGetCellTypesFromConfig] = React.useState(null)
@@ -251,6 +252,9 @@
               
               const cellTypeSelectorModule = await loadJSX(basePath + 'components/GlobalCellTypeSelector.jsx')
               setGlobalCellTypeSelector(() => cellTypeSelectorModule.GlobalCellTypeSelector)
+              
+              const ruleSetVisualizerModule = await loadJSX(basePath + 'components/RuleSetVisualizer.jsx')
+              setRuleSetVisualizer(() => ruleSetVisualizerModule.default || ruleSetVisualizerModule.RuleSetVisualizer)
               
               setComponentsLoaded(true)
             } catch (err) {
@@ -453,6 +457,19 @@
               config: selectedConfig,
               selectedCellType: selectedCellType,
               onCellTypeChange: setSelectedCellType
+            })
+          ),
+          selectedConfig && componentsLoaded && RuleSetVisualizer && selectedConfig.rule_set && React.createElement('div', {
+            style: {
+              background: 'rgba(15, 23, 42, 0.6)',
+              padding: '1.5rem',
+              borderRadius: '12px',
+              border: '1px solid rgba(148, 163, 184, 0.2)'
+            }
+          },
+            React.createElement('h2', { style: { marginTop: 0, color: '#38bdf8', marginBottom: '1rem' } }, 'Rule Set'),
+            React.createElement(RuleSetVisualizer, {
+              ruleSet: selectedConfig.rule_set
             })
           )
         )
