@@ -68,11 +68,11 @@
           }
           
           let module
-          if (resolvedUrl.endsWith('.jsx')) {
-            // Load JSX file recursively
+          if (resolvedUrl.endsWith('.jsx') || (resolvedUrl.endsWith('.js') && (from.startsWith('./') || from.startsWith('../')))) {
+            // Load JSX or local JS file recursively
             module = await loadJSX(resolvedUrl, fullUrl)
           } else {
-            // Load non-JSX imports (React, etc.) via importmap
+            // Load non-local imports (React, etc.) via importmap
             const importMapEntry = document.querySelector('script[type="importmap"]')
             let mapped = from
             if (importMapEntry) {
@@ -137,10 +137,13 @@
           }
         })
         
-        // Transform JSX
-        code = Babel.transform(code, {
-          presets: ['react'],
-        }).code
+        // Transform JSX only for .jsx files
+        const isJSX = fullUrl.endsWith('.jsx')
+        if (isJSX) {
+          code = Babel.transform(code, {
+            presets: ['react'],
+          }).code
+        }
         
         // Add exports for exported consts at the end of the code
         if (exportedConsts.length > 0) {

@@ -101,17 +101,53 @@ button.refresh:hover {
   display: grid;
   gap: 2px;
   margin-top: 0.5rem;
+  justify-content: center;
+  width: 100%;
 }
 
 .grid-cell {
   border-radius: 2px;
   overflow: hidden;
+  position: relative;
+}
+
+.grid-cell.clickable {
+  cursor: pointer;
+  transition: transform 0.15s, box-shadow 0.15s;
+}
+
+.grid-cell.clickable:hover {
+  transform: scale(1.1);
+  z-index: 1;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+}
+
+.grid-cell.selected .grid-cell-inner {
+  border: 2px solid #fff;
+  box-shadow: 0 0 8px rgba(255, 255, 255, 0.6);
 }
 
 .grid-cell-inner {
   width: 100%;
   height: 100%;
   border-radius: 2px;
+}
+
+.grid-preview.interactive .grid-cell {
+  position: relative;
+}
+
+.cell-value {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: #fff;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8);
+  pointer-events: none;
+  z-index: 1;
 }
 
 .ca-preview {
@@ -176,7 +212,6 @@ button.refresh:hover {
 
 .test-case-preview {
   padding: 0.5rem;
-  border-radius: 8px;
   background: rgba(15, 23, 42, 0.65);
   overflow-x: auto;
 }
@@ -190,8 +225,6 @@ button.refresh:hover {
 .test-sidebar {
   width: 240px;
   background: rgba(15, 23, 42, 0.6);
-  border: 1px solid rgba(148, 163, 184, 0.15);
-  border-radius: 12px;
   padding: 1rem;
   display: flex;
   flex-direction: column;
@@ -326,8 +359,6 @@ button.refresh:hover {
 
 .test-viewer {
   background: rgba(15, 23, 42, 0.6);
-  border: 1px solid rgba(148, 163, 184, 0.15);
-  border-radius: 12px;
   padding: 1rem;
 }
 
@@ -344,27 +375,25 @@ button.refresh:hover {
 
 .viewer-panel {
   background: rgba(15, 23, 42, 0.5);
-  border: 1px solid rgba(148, 163, 184, 0.1);
-  border-radius: 10px;
   padding: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
 }
 
 .test-viewer-empty {
   padding: 2rem;
   text-align: center;
   color: #94a3b8;
-  border: 1px dashed rgba(148, 163, 184, 0.3);
-  border-radius: 12px;
 }
 
 .frame-editor {
   background: rgba(15, 23, 42, 0.55);
-  border: 1px solid rgba(148, 163, 184, 0.15);
-  border-radius: 10px;
   padding: 1rem;
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
+  align-items: center;
 }
 
 .frame-editor-header h4 {
@@ -379,27 +408,34 @@ button.refresh:hover {
 
 .frame-editor-cell {
   display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
+  align-items: center;
+  justify-content: center;
+  min-height: 40px;
   padding: 0.5rem;
-  background: rgba(15, 23, 42, 0.7);
-  border-radius: 8px;
-  border: 1px solid rgba(148, 163, 184, 0.1);
-}
-
-.frame-editor-cell input {
-  background: rgba(15, 23, 42, 0.9);
-  border: 1px solid rgba(148, 163, 184, 0.4);
+  background: rgba(15, 23, 42, 0.8);
+  border: 1px solid rgba(148, 163, 184, 0.3);
   border-radius: 6px;
-  padding: 0.35rem;
-  color: #e2e8f0;
-  width: 100%;
-  box-sizing: border-box;
+  cursor: pointer;
+  transition: all 0.2s;
+  position: relative;
 }
 
-.frame-editor-cell input:focus {
-  outline: none;
-  border-color: rgba(56, 189, 248, 0.6);
+.frame-editor-cell:hover {
+  transform: scale(1.05);
+  z-index: 1;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.frame-editor-cell.selected {
+  border-width: 2px;
+  box-shadow: 0 0 8px rgba(255, 255, 255, 0.5);
+}
+
+.cell-value {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #fff;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
 }
 
 .cell-coords {
@@ -412,8 +448,6 @@ button.refresh:hover {
   flex-direction: column;
   gap: 1rem;
   background: rgba(15, 23, 42, 0.6);
-  border: 1px solid rgba(148, 163, 184, 0.15);
-  border-radius: 12px;
   padding: 1rem;
   max-height: 80vh;
   overflow: hidden;
@@ -474,12 +508,101 @@ button.refresh:hover {
   cursor: not-allowed;
 }
 
+.editor-layout {
+  display: flex;
+  gap: 1.5rem;
+  flex: 1;
+  overflow: hidden;
+}
+
+.editor-sidebar {
+  flex-shrink: 0;
+  width: 200px;
+}
+
+.cell-type-palette {
+  background: rgba(15, 23, 42, 0.6);
+  padding: 1rem;
+  position: sticky;
+  top: 1rem;
+}
+
+.palette-header {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.palette-header h4 {
+  margin: 0;
+  color: #e2e8f0;
+  font-size: 1rem;
+}
+
+.palette-hint {
+  font-size: 0.75rem;
+  color: #94a3b8;
+}
+
+.palette-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.palette-button {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem;
+  background: rgba(15, 23, 42, 0.8);
+  border: 2px solid transparent;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+  color: #fff;
+  font-size: 0.9rem;
+  text-align: left;
+  width: 100%;
+}
+
+.palette-button:hover {
+  transform: translateX(4px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.palette-button.selected {
+  border-color: #fff;
+  box-shadow: 0 0 12px rgba(255, 255, 255, 0.4);
+  background: rgba(15, 23, 42, 0.95);
+}
+
+.palette-button-number {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 6px;
+  font-weight: 700;
+  font-size: 0.85rem;
+  flex-shrink: 0;
+}
+
+.palette-button-name {
+  flex: 1;
+  font-weight: 500;
+}
+
 .frame-editor-list {
   overflow-y: auto;
   display: flex;
   flex-direction: column;
   gap: 1rem;
   padding-right: 0.25rem;
+  flex: 1;
 }
 
 .test-toolbar {
@@ -488,8 +611,6 @@ button.refresh:hover {
   align-items: center;
   padding: 0.75rem 1rem;
   background: rgba(15, 23, 42, 0.7);
-  border: 1px solid rgba(148, 163, 184, 0.15);
-  border-radius: 12px;
   gap: 1rem;
 }
 

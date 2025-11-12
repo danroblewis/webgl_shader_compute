@@ -1,4 +1,6 @@
+import React from 'react'
 import { FrameEditorGrid } from './FrameEditorGrid.jsx'
+import { CellTypePalette } from './CellTypePalette.jsx'
 
 const cloneCell = (cell) => {
   const next = new Float32Array(4)
@@ -12,20 +14,21 @@ const cloneCell = (cell) => {
 const cloneFrame = (frame) => frame.map((row) => row.map(cloneCell))
 
 export const TestCaseEditor = ({ test, onChange, channelIndex = 0 }) => {
+  const [selectedCellType, setSelectedCellType] = React.useState(0)
+
   if (!test) return null
 
   const handleFieldChange = (field) => (event) => {
     onChange?.({ ...test, [field]: event.target.value })
   }
 
-  const handleCellChange = (frameIdx, rowIdx, colIdx, channel, value) => {
+  const handleCellChange = (frameIdx, rowIdx, colIdx, newCell) => {
+    // newCell is a Float32Array with full RGBA values
     const frames = test.frames.map((frame, fi) =>
       frame.map((row, ri) =>
         row.map((cell, ci) => {
           if (fi === frameIdx && ri === rowIdx && ci === colIdx) {
-            const next = cloneCell(cell)
-            next[channel] = value
-            return next
+            return newCell
           }
           return cell
         }),
@@ -52,10 +55,6 @@ export const TestCaseEditor = ({ test, onChange, channelIndex = 0 }) => {
           <label>Name</label>
           <input type="text" value={test.name} onChange={handleFieldChange('name')} />
         </div>
-        <div className="metadata-field">
-          <label>Description</label>
-          <textarea value={test.description ?? ''} onChange={handleFieldChange('description')} />
-        </div>
         <div className="metadata-inline">
           <span>Width: {test.width}</span>
           <span>Height: {test.height}</span>
@@ -70,16 +69,25 @@ export const TestCaseEditor = ({ test, onChange, channelIndex = 0 }) => {
           </button>
         </div>
       </div>
-      <div className="frame-editor-list">
-        {test.frames.map((frame, idx) => (
-          <FrameEditorGrid
-            key={`frame-editor-${idx}`}
-            frameIndex={idx}
-            frame={frame}
-            channelIndex={channelIndex}
-            onCellChange={handleCellChange}
+      <div className="editor-layout">
+        <div className="editor-sidebar">
+          <CellTypePalette
+            selectedType={selectedCellType}
+            onSelectType={setSelectedCellType}
           />
-        ))}
+        </div>
+        <div className="frame-editor-list">
+          {test.frames.map((frame, idx) => (
+            <FrameEditorGrid
+              key={`frame-editor-${idx}`}
+              frameIndex={idx}
+              frame={frame}
+              channelIndex={channelIndex}
+              selectedCellType={selectedCellType}
+              onCellChange={handleCellChange}
+            />
+          ))}
+        </div>
       </div>
     </div>
   )
